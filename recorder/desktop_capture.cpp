@@ -44,6 +44,7 @@ bool DesktopCapture::init(int monitor_index, const Rect& region) {
                                (ID3D11Device**)&device_, &lvl,
                                (ID3D11DeviceContext**)&context_))) {
     LOGE("D3D11CreateDevice failed");
+    close();
     return false;
   }
 
@@ -52,6 +53,7 @@ bool DesktopCapture::init(int monitor_index, const Rect& region) {
   if (FAILED(output1->DuplicateOutput((ID3D11Device*)device_,
                                       (IDXGIOutputDuplication**)&duplication_))) {
     LOGE("DuplicateOutput failed (权限/独占?)");
+    close();
     return false;
   }
 
@@ -60,6 +62,8 @@ bool DesktopCapture::init(int monitor_index, const Rect& region) {
   if (crop_.y < 0) crop_.y = 0;
   if (crop_.x + crop_.w > full_w) crop_.w = full_w - crop_.x;
   if (crop_.y + crop_.h > full_h) crop_.h = full_h - crop_.y;
+  if (crop_.w < 0) crop_.w = 0;
+  if (crop_.h < 0) crop_.h = 0;
   tex_w_ = full_w;
   tex_h_ = full_h;
 
@@ -75,6 +79,7 @@ bool DesktopCapture::init(int monitor_index, const Rect& region) {
   if (FAILED(((ID3D11Device*)device_)->CreateTexture2D(&sd, nullptr,
                                                        (ID3D11Texture2D**)&staging_))) {
     LOGE("CreateTexture2D(staging) failed");
+    close();
     return false;
   }
   LOGI("capture init: monitor %d %dx%d crop(%d,%d,%d,%d)", monitor_index, full_w,
@@ -100,7 +105,8 @@ bool DesktopCapture::next(CapturedFrame& out, int timeout_ms) {
   ctx->CopyResource((ID3D11Texture2D*)staging_, tex.Get());
 
   D3D11_MAPPED_SUBRESOURCE map;
-  if (SUCCEEDED(ctx->Map((ID3D11Texture2D*)staging_, 0, D3D11_MAP_READ, 0, &map))) {
+  bool mapped = SUCCEEDED(ctx->Map((ID3D11Texture2D*)staging_, 0, D3D11_MAP_READ, 0, &map));
+  if (mapped) {
     out.width = crop_.w;
     out.height = crop_.h;
     out.bgra.resize((size_t)crop_.w * crop_.h * 4);
@@ -115,7 +121,7 @@ bool DesktopCapture::next(CapturedFrame& out, int timeout_ms) {
   }
   dup->ReleaseFrame();
   res->Release();
-  return true;
+  return mapped;
 }
 
 void DesktopCapture::close() {
