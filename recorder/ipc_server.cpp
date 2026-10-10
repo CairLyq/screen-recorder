@@ -19,22 +19,24 @@ bool IpcServer::wait_client() {
 
 bool IpcServer::read_message(Message& out) {
   HANDLE h = static_cast<HANDLE>(handle_);
-  // 已缓冲的完整帧？
-  size_t consumed = 0;
-  if (decode_message(buf_.data(), buf_.size(), out, consumed)) {
-    buf_.erase(buf_.begin(), buf_.begin() + consumed);
-    return true;
+  for (;;) {
+    // 已缓冲的完整帧？
+    size_t consumed = 0;
+    if (decode_message(buf_.data(), buf_.size(), out, consumed)) {
+      buf_.erase(buf_.begin(), buf_.begin() + consumed);
+      return true;
+    }
+    uint8_t tmp[4096];
+    DWORD got = 0;
+    BOOL ok = ReadFile(h, tmp, sizeof(tmp), &got, nullptr);
+    if (got > 0) buf_.insert(buf_.end(), tmp, tmp + got);
+    if (ok) {
+      if (got == 0) return false;  // 零长读 → 对端关闭
+      continue;                    // 有字节，回到顶部再试解码
+    }
+    if (GetLastError() == ERROR_MORE_DATA) continue;  // 本条消息还有后续分片
+    return false;  // 真正的错误 / 断连
   }
-  uint8_t tmp[4096];
-  DWORD got = 0;
-  BOOL ok = ReadFile(h, tmp, sizeof(tmp), &got, nullptr);
-  if (!ok || got == 0) return false;
-  buf_.insert(buf_.end(), tmp, tmp + got);
-  if (decode_message(buf_.data(), buf_.size(), out, consumed)) {
-    buf_.erase(buf_.begin(), buf_.begin() + consumed);
-    return true;
-  }
-  return false;
 }
 
 bool IpcServer::send_message(const Message& m) {
