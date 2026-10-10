@@ -1,11 +1,9 @@
 #include "ui/region_frame.h"
-#include <cstdio>
 
 namespace {
-const COLORREF kKey = RGB(1, 2, 3);      // 色键：该颜色处透明
-const COLORREF kBorder = RGB(230, 40, 40);
-const int BORDER = 3;    // px
-const int LABEL_H = 18;  // px
+const COLORREF kKey = RGB(1, 2, 3);  // 色键：该颜色处透明
+const int BORDER = 4;                // px，窗口在区域外扩的边距
+const int CORNER = 22;               // 角臂长度 px
 }  // namespace
 
 LRESULT CALLBACK RegionFrame::wnd_proc(HWND h, UINT m, WPARAM w, LPARAM l) {
@@ -27,22 +25,34 @@ LRESULT RegionFrame::handle(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
       HDC dc = BeginPaint(h, &ps);
       RECT full;
       GetClientRect(h, &full);
-      // 整块客户区先铺边框色，再把区域内部填成色键 → 内部透明。
-      HBRUSH border = CreateSolidBrush(kBorder);
-      FillRect(dc, &full, border);
-      DeleteObject(border);
-      if (has_) {
-        int w = region_.right - region_.left;
-        int h = region_.bottom - region_.top;
-        RECT inner = {BORDER, BORDER + LABEL_H, BORDER + w, BORDER + LABEL_H + h};
-        HBRUSH key = CreateSolidBrush(kKey);
-        FillRect(dc, &inner, key);
-        DeleteObject(key);
-        wchar_t t[64];
-        swprintf_s(t, L"%dx%d", w, h);
-        SetTextColor(dc, RGB(255, 255, 255));
-        SetBkMode(dc, TRANSPARENT);
-        TextOutW(dc, 6, 2, t, (int)wcslen(t));
+      // 整块铺色键色 → 区域内部透明，只留下画上去的线。
+      HBRUSH key = CreateSolidBrush(kKey);
+      FillRect(dc, &full, key);
+      DeleteObject(key);
+      // 区域轮廓（窗口坐标）：窗口已在区域外扩 BORDER，故边界即区域边。
+      RECT r = {BORDER, BORDER, full.right - BORDER, full.bottom - BORDER};
+      if (r.right > r.left && r.bottom > r.top) {
+        HGDIOBJ oldBrush = SelectObject(dc, GetStockObject(NULL_BRUSH));
+        // 白色虚线边界（GDI 虚线要求 1px 宽）。
+        HPEN dash = CreatePen(PS_DASH, 1, RGB(255, 255, 255));
+        HGDIOBJ oldPen = SelectObject(dc, dash);
+        Rectangle(dc, r.left, r.top, r.right, r.bottom);
+        // 加粗实心角（3px，沿同一边界矩形，每臂 ~22px）。
+        HPEN solid = CreatePen(PS_SOLID, 3, RGB(255, 255, 255));
+        SelectObject(dc, solid);
+        int L = r.left, T = r.top, R = r.right, B = r.bottom;
+        MoveToEx(dc, L, T, nullptr); LineTo(dc, L + CORNER, T);  // 左上
+        MoveToEx(dc, L, T, nullptr); LineTo(dc, L, T + CORNER);
+        MoveToEx(dc, R, T, nullptr); LineTo(dc, R - CORNER, T);  // 右上
+        MoveToEx(dc, R, T, nullptr); LineTo(dc, R, T + CORNER);
+        MoveToEx(dc, L, B, nullptr); LineTo(dc, L + CORNER, B);  // 左下
+        MoveToEx(dc, L, B, nullptr); LineTo(dc, L, B - CORNER);
+        MoveToEx(dc, R, B, nullptr); LineTo(dc, R - CORNER, B);  // 右下
+        MoveToEx(dc, R, B, nullptr); LineTo(dc, R, B - CORNER);
+        SelectObject(dc, oldPen);
+        SelectObject(dc, oldBrush);
+        DeleteObject(dash);
+        DeleteObject(solid);
       }
       EndPaint(h, &ps);
       return 0;
@@ -77,8 +87,8 @@ void RegionFrame::set_region(int x, int y, int w, int h) {
   region_.left = x; region_.top = y;
   region_.right = x + w; region_.bottom = y + h;
   has_ = true;
-  SetWindowPos(hwnd_, HWND_TOPMOST, x - BORDER, y - BORDER - LABEL_H,
-               w + 2 * BORDER, h + 2 * BORDER + LABEL_H, SWP_NOACTIVATE);
+  SetWindowPos(hwnd_, HWND_TOPMOST, x - BORDER, y - BORDER,
+               w + 2 * BORDER, h + 2 * BORDER, SWP_NOACTIVATE);
   InvalidateRect(hwnd_, nullptr, TRUE);
   ShowWindow(hwnd_, SW_SHOWNOACTIVATE);
 }

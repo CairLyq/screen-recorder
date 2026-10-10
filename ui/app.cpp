@@ -47,7 +47,8 @@ bool App::init(HINSTANCE inst) {
                           nullptr, nullptr, inst, this);
   if (hwnd_ == nullptr) { LOGE("CreateWindowExW failed: %lu", GetLastError()); return false; }
 
-  toolbar_.create(inst, [this] { stop_recording(); });
+  toolbar_.create(inst, [this] { toggle(); });
+  toolbar_.show();      // 悬浮条常驻：顶部居中
   frame_.create(inst);  // 区域不持久化：启动时不恢复，每次录制重新框选
   tray_.add(hwnd_, WM_TRAY);
   tray_.set_callbacks([this] { toggle(); }, [this] { open_settings(); },
@@ -84,7 +85,7 @@ bool App::start_recording() {
   }
   client_.send_message({MsgType::Start, config_to_json(cfg_)});
   recording_ = true;
-  toolbar_.show();
+  toolbar_.set_recording(true);
   SetTimer(hwnd_, TIMER_POLL, 20, nullptr);
   return true;
 }
@@ -109,7 +110,7 @@ void App::poll_ipc() {
     } else if (m.type == MsgType::Stats) {
       try {
         json j = json::parse(m.payload);
-        toolbar_.set_status(j.value("elapsed_ms", (int64_t)0), j.value("fps", 0.0));
+        toolbar_.set_elapsed(j.value("elapsed_ms", (int64_t)0));
       } catch (...) {}
     } else if (m.type == MsgType::Error) {
       MessageBoxW(hwnd_, L"录制出错", L"错误", MB_OK | MB_ICONERROR);
@@ -127,7 +128,9 @@ void App::end_session() {
   kill_recorder(proc_); proc_ = nullptr;
   client_.close();
   recording_ = false;
-  toolbar_.hide();
+  toolbar_.set_recording(false);
+  toolbar_.set_elapsed(0);
+  frame_.hide();  // 录制结束隐藏区域框
 }
 
 void App::toggle() {
