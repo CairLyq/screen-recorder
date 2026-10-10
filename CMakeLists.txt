@@ -44,6 +44,7 @@ target_link_libraries(ui_core PUBLIC common)
 
 add_library(ui_widgets STATIC
   ui/settings_dialog.cpp
+  ui/region_border.cpp
   ui/region_selector.cpp
   ui/region_frame.cpp
   ui/toolbar.cpp
