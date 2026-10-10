@@ -1641,15 +1641,16 @@ int main() {
   uint8_t cur[2 * 2 * 4] = {
       0, 0, 255, 128,  0, 0, 255, 128,
       0, 0, 255, 128,  0, 0, 255, 128};
-  draw_cursor_bgra(dst.data(), W, H, 1, 1, cur, 2, 2, 128);
+  draw_cursor_bgra(dst.data(), W, H, 1, 1, cur, 2, 2, 255);
 
-  // (1,1) 像素：B=0，R≈127（0*0.5 + 255*0.5）
+  // (1,1) 像素：B=0，R≈127（0*0.5 + 255*0.5）。cur_alpha=255 是中性值，
+  // 半透明来自位图自身 alpha=128，避免双重折半。
   size_t i = (1 * W + 1) * 4;
   CHECK(dst[i + 0] < 5);          // B
   CHECK(dst[i + 2] > 120);        // R 被 alpha 合成
 
   // 越界：负坐标不崩、不写
-  draw_cursor_bgra(dst.data(), W, H, -1, -1, cur, 2, 2, 128);
+  draw_cursor_bgra(dst.data(), W, H, -1, -1, cur, 2, 2, 255);
   return 0;
 }
 ```
