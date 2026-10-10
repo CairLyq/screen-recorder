@@ -46,6 +46,8 @@ add_library(ui_widgets STATIC
   ui/settings_dialog.cpp
   ui/region_selector.cpp
   ui/toolbar.cpp
+  ui/tray.cpp
+  ui/hotkey.cpp
   ui/ui.rc)
 target_link_libraries(ui_widgets PUBLIC ui_core user32 gdi32 shell32 comctl32)
 
