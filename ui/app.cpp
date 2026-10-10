@@ -5,6 +5,7 @@
 #include "ui/region_selector.h"
 #include "ui/settings_dialog.h"
 #include "ui/hotkey.h"
+#include "ui/resource.h"
 #include <shlobj.h>
 #include <nlohmann/json.hpp>
 
@@ -41,6 +42,8 @@ bool App::init(HINSTANCE inst) {
     return DefWindowProcW(h, m, w, l);
   };
   wc.hInstance = inst;
+  wc.hIcon = (HICON)LoadImageW(inst, MAKEINTRESOURCEW(IDI_APPICON), IMAGE_ICON,
+                               GetSystemMetrics(SM_CXICON), GetSystemMetrics(SM_CYICON), 0);
   wc.lpszClassName = L"ScreenRecUiClass";
   if (!RegisterClassW(&wc)) LOGE("RegisterClassW failed: %lu", GetLastError());
   hwnd_ = CreateWindowExW(0, wc.lpszClassName, L"ScreenRecorder", 0, 0, 0, 0, 0,

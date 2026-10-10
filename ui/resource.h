@@ -1,5 +1,6 @@
 #pragma once
 #define IDD_SETTINGS    101
+#define IDI_APPICON     100  // 应用图标（exe / 窗口 / 托盘）
 #define IDC_MONITOR     1001
 #define IDC_FPS         1002
 #define IDC_QUALITY     1003

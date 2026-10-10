@@ -2,6 +2,8 @@
 #include <windows.h>
 #include "resource.h"
 
+IDI_APPICON ICON "app.ico"
+
 IDD_SETTINGS DIALOGEX 0, 0, 260, 232
 STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "屏幕录制设置"

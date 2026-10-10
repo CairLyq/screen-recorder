@@ -1,4 +1,5 @@
 #include "ui/tray.h"
+#include "ui/resource.h"
 #include <shellapi.h>
 #include <cwchar>
 
@@ -17,7 +18,10 @@ bool Tray::add(HWND owner, UINT callback_msg) {
   nid.uID = 1;
   nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
   nid.uCallbackMessage = callback_msg;
-  nid.hIcon = LoadIcon(nullptr, IDI_APPLICATION);
+  nid.hIcon = (HICON)LoadImageW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDI_APPICON),
+                                IMAGE_ICON, GetSystemMetrics(SM_CXSMICON),
+                                GetSystemMetrics(SM_CYSMICON), LR_DEFAULTCOLOR);
+  if (!nid.hIcon) nid.hIcon = LoadIcon(nullptr, IDI_APPLICATION);
   wcscpy_s(nid.szTip, L"屏幕录制");
   return Shell_NotifyIconW(NIM_ADD, &nid) != 0;
 }
