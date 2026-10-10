@@ -21,11 +21,16 @@ bool Muxer::open(const std::string& path, AVCodecContext* video,
   if (!(fmt_->oformat->flags & AVFMT_NOFILE)) {
     if (avio_open(&fmt_->pb, path.c_str(), AVIO_FLAG_WRITE) < 0) {
       error_ = "avio_open failed";
+      avformat_free_context(fmt_);
+      fmt_ = nullptr;
       return false;
     }
   }
   if (avformat_write_header(fmt_, nullptr) < 0) {
     error_ = "write_header failed";
+    if (!(fmt_->oformat->flags & AVFMT_NOFILE) && fmt_->pb) avio_closep(&fmt_->pb);
+    avformat_free_context(fmt_);
+    fmt_ = nullptr;
     return false;
   }
   return true;
