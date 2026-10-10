@@ -1,3 +1,5 @@
 /build/
 /_cache/
 /third_party/ffmpeg/
+__pycache__/
+*.pyc
