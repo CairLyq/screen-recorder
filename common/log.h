@@ -2,8 +2,17 @@
 #include <cstdio>
 #include <cstdarg>
 #include <mutex>
+#if defined(_MSC_VER)
+#include <sal.h>
+#endif
 
-inline void log_line(const char* level, const char* fmt, ...) {
+#ifdef _MSC_VER
+#define SR_PRINTF_FMT _Printf_format_string_
+#else
+#define SR_PRINTF_FMT
+#endif
+
+inline void log_line(const char* level, SR_PRINTF_FMT const char* fmt, ...) {
   static std::mutex m;
   std::lock_guard<std::mutex> g(m);
   std::fprintf(stderr, "[%s] ", level);
