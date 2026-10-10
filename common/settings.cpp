@@ -56,39 +56,40 @@ void save_settings(const std::string& path, const RecordConfig& c) {
 }
 
 RecordConfig load_settings(const std::string& path) {
-  RecordConfig c;
   std::ifstream f(path);
-  if (!f.is_open()) return c;
-  json j;
+  if (!f.is_open()) return RecordConfig{};
+  // 解析或字段类型不匹配一律回落默认配置
   try {
+    json j;
     f >> j;
-  } catch (...) {
+    RecordConfig c;
+    c.output_dir = j.value("output_dir", c.output_dir);
+    c.monitor_index = j.value("monitor_index", c.monitor_index);
+    if (j.contains("region")) {
+      c.region.x = j["region"].value("x", 0);
+      c.region.y = j["region"].value("y", 0);
+      c.region.w = j["region"].value("w", 0);
+      c.region.h = j["region"].value("h", 0);
+    }
+    c.region_enabled = j.value("region_enabled", false);
+    c.fps = j.value("fps", 30);
+    c.quality = quality_from_str(j.value("quality", std::string("medium")));
+    c.encoder = enc_from_str(j.value("video_encoder", std::string("auto")));
+    if (j.contains("system_audio")) {
+      c.system_audio.enabled = j["system_audio"].value("enabled", false);
+      c.system_audio.volume = j["system_audio"].value("volume", 1.0f);
+      c.system_audio.device = j["system_audio"].value("device", std::string("default"));
+    }
+    if (j.contains("microphone")) {
+      c.microphone.enabled = j["microphone"].value("enabled", false);
+      c.microphone.volume = j["microphone"].value("volume", 1.0f);
+      c.microphone.device = j["microphone"].value("device", std::string("default"));
+    }
+    c.include_cursor = j.value("include_cursor", true);
     return c;
+  } catch (...) {
+    return RecordConfig{};
   }
-  c.output_dir = j.value("output_dir", c.output_dir);
-  c.monitor_index = j.value("monitor_index", c.monitor_index);
-  if (j.contains("region")) {
-    c.region.x = j["region"].value("x", 0);
-    c.region.y = j["region"].value("y", 0);
-    c.region.w = j["region"].value("w", 0);
-    c.region.h = j["region"].value("h", 0);
-  }
-  c.region_enabled = j.value("region_enabled", false);
-  c.fps = j.value("fps", 30);
-  c.quality = quality_from_str(j.value("quality", std::string("medium")));
-  c.encoder = enc_from_str(j.value("video_encoder", std::string("auto")));
-  if (j.contains("system_audio")) {
-    c.system_audio.enabled = j["system_audio"].value("enabled", false);
-    c.system_audio.volume = j["system_audio"].value("volume", 1.0f);
-    c.system_audio.device = j["system_audio"].value("device", std::string("default"));
-  }
-  if (j.contains("microphone")) {
-    c.microphone.enabled = j["microphone"].value("enabled", false);
-    c.microphone.volume = j["microphone"].value("volume", 1.0f);
-    c.microphone.device = j["microphone"].value("device", std::string("default"));
-  }
-  c.include_cursor = j.value("include_cursor", true);
-  return c;
 }
 
 std::string default_settings_path() {
