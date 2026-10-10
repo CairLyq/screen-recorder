@@ -1,6 +1,7 @@
 #include "tests/check.h"
 #include "recorder/video_encoder.h"
 #include "recorder/audio_encoder.h"
+#include "recorder/muxer.h"
 #include <vector>
 #include <cmath>
 
@@ -53,5 +54,45 @@ int main() {
   CHECK(apackets > 0);
   std::printf("audio packets = %d\n", apackets);
   aenc.close();
+
+  // ---- MP4 封装：把上面两段编码结果写文件 ----
+  // 先重开一组编码器+muxer，录 1 秒
+  {
+    const char* out = "test_encoder_mux_out.mp4";
+    std::remove(out);
+    VideoEncoder v;
+    AudioEncoder a;
+    std::string vn, an;
+    CHECK(v.open(320, 240, 30, Quality::Medium, EncoderKind::X264, vn));
+    CHECK(a.open(48000, 2, an));
+    Muxer mux;
+    CHECK(mux.open(out, v.ctx(), a.ctx()));
+
+    AVFrame* f = v.alloc_frame();
+    std::vector<float> sine(1024 * 2, 0.1f);
+    for (int i = 0; i < 30; ++i) {
+      for (int r = 0; r < 240; ++r)
+        std::memset(f->data[0] + r * f->linesize[0], 128, 320);
+      for (int r = 0; r < 120; ++r)
+        std::memset(f->data[1] + r * f->linesize[1], 128, 320);
+      f->pts = i;
+      v.encode(f, [&](AVPacket* p) { mux.write(p, v.ctx()); });
+      a.encode(sine.data(), 1024, [&](AVPacket* p) { mux.write(p, a.ctx()); });
+    }
+    v.flush([&](AVPacket* p) { mux.write(p, v.ctx()); });
+    a.flush([&](AVPacket* p) { mux.write(p, a.ctx()); });
+    mux.close();
+    av_frame_free(&f);
+    v.close();
+    a.close();
+
+    std::FILE* fp = std::fopen(out, "rb");
+    CHECK(fp != nullptr);
+    std::fseek(fp, 0, SEEK_END);
+    long sz = std::ftell(fp);
+    std::fclose(fp);
+    CHECK(sz > 1000);
+    std::printf("mp4 size = %ld\n", sz);
+  }
   return 0;
 }
