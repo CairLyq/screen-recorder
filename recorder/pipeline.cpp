@@ -28,6 +28,7 @@ Stats Pipeline::stats() const {
 }
 
 bool Pipeline::start(const RecordConfig& cfg, std::string& out_path) {
+  if (running_) return false;  // 已在录制：拒绝重入，避免对 joinable 线程再次赋值
   cfg_ = cfg;
   LARGE_INTEGER f; QueryPerformanceFrequency(&f); qpc_freq_ = f.QuadPart;
 
@@ -135,43 +136,43 @@ bool Pipeline::start(const RecordConfig& cfg, std::string& out_path) {
     }
     sws_freeContext(sws);
     av_frame_free(&f);
+    cap->close();
+    delete cap;
   });
 
-  et_ = std::thread([this, mux, cap] {
+  et_ = std::thread([this, mux] {
     VideoEncoder* ve = (VideoEncoder*)venc_;
     AudioEncoder* ae = (AudioEncoder*)aenc_;
     AVFrame* f = ve->alloc_frame();
     int h = f->height;
+    VItem it;
+    std::vector<float> abuf;
     while (true) {
-      bool did = false;
+      bool have_v = false, have_a = false;
       {
         std::lock_guard<std::mutex> g(vmtx_);
-        if (!vq_.empty()) {
-          VItem it = std::move(vq_.front());
-          vq_.erase(vq_.begin());
-          av_frame_make_writable(f);
-          size_t off = 0;
-          for (int r = 0; r < h; ++r) { std::memcpy(f->data[0] + r * f->linesize[0], it.nv12.data() + off, f->linesize[0]); off += f->linesize[0]; }
-          for (int r = 0; r < h / 2; ++r) { std::memcpy(f->data[1] + r * f->linesize[1], it.nv12.data() + off, f->linesize[1]); off += f->linesize[1]; }
-          f->pts = it.pts;
-          ve->encode(f, [&](AVPacket* p) { mux->write(p, ve->ctx()); });
-          did = true;
-        }
+        if (!vq_.empty()) { it = std::move(vq_.front()); vq_.erase(vq_.begin()); have_v = true; }
+      }
+      // 编码/mux 放锁外，避免拖慢抓屏线程
+      if (have_v) {
+        av_frame_make_writable(f);
+        size_t off = 0;
+        for (int r = 0; r < h; ++r) { std::memcpy(f->data[0] + r * f->linesize[0], it.nv12.data() + off, f->linesize[0]); off += f->linesize[0]; }
+        for (int r = 0; r < h / 2; ++r) { std::memcpy(f->data[1] + r * f->linesize[1], it.nv12.data() + off, f->linesize[1]); off += f->linesize[1]; }
+        f->pts = it.pts;
+        ve->encode(f, [&](AVPacket* p) { mux->write(p, ve->ctx()); });
       }
       {
         std::lock_guard<std::mutex> g(amtx_);
-        if (!aq_.empty()) {
-          ae->encode(aq_.data(), (int)(aq_.size() / a_channels_),
-                     [&](AVPacket* p) { mux->write(p, ae->ctx()); });
-          aq_.clear();
-          did = true;
-        }
+        if (!aq_.empty()) { abuf.swap(aq_); have_a = true; }
       }
-      if (!did) {
-        if (!running_) {
-          std::lock_guard<std::mutex> g(vmtx_);
-          if (vq_.empty()) break;
-        }
+      if (have_a) {
+        ae->encode(abuf.data(), (int)(abuf.size() / a_channels_),
+                   [&](AVPacket* p) { mux->write(p, ae->ctx()); });
+        abuf.clear();
+      }
+      if (!have_v && !have_a) {
+        if (!running_) break;
         Sleep(3);
       }
     }
@@ -179,12 +180,13 @@ bool Pipeline::start(const RecordConfig& cfg, std::string& out_path) {
     ae->flush([&](AVPacket* p) { mux->write(p, ae->ctx()); });
     mux->close();
     av_frame_free(&f);
-    delete mux; delete ae; delete ve; delete cap;
+    ve->close();
+    ae->close();
+    delete mux; delete ae; delete ve;
   });
 
   // 音频线程：两路采集，混音后入队
-  at_ = std::thread([this, cap] {
-    (void)cap;
+  at_ = std::thread([this] {
     WasapiCapture sys, mic;
     Resampler* rsys = nullptr;
     Resampler* rmic = nullptr;
