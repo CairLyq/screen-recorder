@@ -54,6 +54,12 @@ target_link_libraries(ui_widgets PUBLIC ui_core user32 gdi32 shell32 comctl32)
 add_executable(recorder recorder/main.cpp)
 target_link_libraries(recorder PRIVATE recorder_core)
 
+add_executable(ui WIN32 ui/main.cpp ui/app.cpp)
+target_link_libraries(ui PRIVATE ui_widgets ui_core common)
+add_custom_command(TARGET ui POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    $<TARGET_FILE:recorder> $<TARGET_FILE_DIR:ui>)
+
 # 构建后把 ffmpeg dll 拷到输出目录
 add_custom_command(TARGET recorder POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E copy_directory
