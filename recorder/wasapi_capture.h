@@ -1,4 +1,5 @@
 #pragma once
+#include <atomic>
 #include <cstdint>
 #include <functional>
 #include <string>
@@ -21,5 +22,5 @@ private:
   void* capture_ = nullptr;     // IAudioCaptureClient*
   int sample_rate_ = 0;
   int channels_ = 0;
-  bool running_ = false;
+  std::atomic<bool> running_{false};
 };

@@ -38,7 +38,17 @@ bool WasapiCapture::init(bool loopback, int channels_hint) {
   WAVEFORMATEX* mix = nullptr;
   client->GetMixFormat(&mix);
   sample_rate_ = mix->nSamplesPerSec;
-  channels_ = (channels_hint > 0) ? channels_hint : mix->nChannels;
+  // 共享模式下 Initialize 要求格式与音频引擎 mix format 一致；声道数必须用设备原生的，
+  // 否则 WAVEFORMATEX 自相矛盾（nChannels 与 nBlockAlign 不符）导致 Initialize 失败或误读。
+  channels_ = mix->nChannels;
+  if (channels_hint > 0 && channels_hint != channels_) {
+    LOGE("audio endpoint has %d ch, requested %d — unsupported, skipping", channels_,
+         channels_hint);
+    CoTaskMemFree(mix);
+    client->Release();
+    channels_ = 0;
+    return false;
+  }
   // 统一用 float32
   mix->wFormatTag = WAVE_FORMAT_IEEE_FLOAT;
   mix->wBitsPerSample = 32;
