@@ -316,7 +316,7 @@ git commit -m "feat: 共用类型定义"
 int main() {
   Message in{MsgType::Start, R"({"fps":30})"};
   std::vector<uint8_t> buf = encode_message(in);
-  CHECK(buf.size() == 4 + 1 + 11);
+  CHECK(buf.size() == 4 + 1 + 10);
 
   Message out{MsgType::Ping, ""};
   size_t consumed = 0;

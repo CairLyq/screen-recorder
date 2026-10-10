@@ -20,7 +20,7 @@ bool decode_message(const uint8_t* data, size_t len, Message& out, size_t& consu
                   (static_cast<uint32_t>(data[2]) << 16) |
                   (static_cast<uint32_t>(data[3]) << 24);
   if (body < 1) return false;
-  if (len < 4u + body) return false;
+  if (len < 4u + static_cast<size_t>(body)) return false;
   out.type = static_cast<MsgType>(data[4]);
   out.payload.assign(reinterpret_cast<const char*>(data + 5), body - 1);
   consumed = 4u + body;
