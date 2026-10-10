@@ -5,6 +5,7 @@
 #include "recorder/ipc_server.h"
 #include "recorder/muxer.h"
 #include <nlohmann/json.hpp>
+#include <atomic>
 #include <cstdio>
 #include <cstdlib>
 #include <string>
@@ -37,7 +38,10 @@ static int run_ipc(const std::string& pipe_name) {
   server.send_message({MsgType::Ready, R"({"version":1})"});
 
   Pipeline p;
-  bool recording = false;
+  std::atomic<bool> recording{false};
+  std::thread stats_t;
+  auto join_stats = [&] { if (stats_t.joinable()) stats_t.join(); };
+
   for (;;) {
     Message m;
     if (!server.read_message(m)) { LOGI("pipe closed"); break; }
@@ -45,21 +49,36 @@ static int run_ipc(const std::string& pipe_name) {
       RecordConfig cfg = config_from_json(m.payload);
       std::string path;
       if (p.start(cfg, path)) {
-        recording = true;
         json j; j["path"] = path;
         server.send_message({MsgType::State, j.dump()});
+        recording = true;
+        stats_t = std::thread([&] {
+          while (recording) {
+            Sleep(1000);
+            if (!recording) break;
+            Stats s = p.stats();
+            json sj;
+            sj["fps"] = s.fps;
+            sj["elapsed_ms"] = s.elapsed_ms;
+            sj["dropped_frames"] = s.dropped_frames;
+            server.send_message({MsgType::Stats, sj.dump()});
+          }
+        });
       } else {
         server.send_message({MsgType::Error, R"({"code":"start_failed"})"});
       }
     } else if (m.type == MsgType::Stop) {
       p.stop();
       recording = false;
+      join_stats();
       server.send_message({MsgType::Done, R"({"ok":true})"});
     } else if (m.type == MsgType::Ping) {
       server.send_message({MsgType::State, R"("alive")"});
     }
   }
-  if (recording) p.stop();
+  recording = false;
+  join_stats();
+  p.stop();
   server.close();
   return 0;
 }

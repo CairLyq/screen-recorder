@@ -40,6 +40,7 @@ bool IpcServer::read_message(Message& out) {
 }
 
 bool IpcServer::send_message(const Message& m) {
+  std::lock_guard<std::mutex> g(send_mtx_);
   HANDLE h = static_cast<HANDLE>(handle_);
   auto buf = encode_message(m);
   DWORD wrote = 0;

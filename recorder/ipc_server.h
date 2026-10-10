@@ -1,6 +1,7 @@
 #pragma once
 #include "common/ipc_message.h"
 #include <cstdint>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -15,4 +16,5 @@ public:
 private:
   void* handle_ = nullptr;  // HANDLE
   std::vector<uint8_t> buf_;
+  std::mutex send_mtx_;
 };
