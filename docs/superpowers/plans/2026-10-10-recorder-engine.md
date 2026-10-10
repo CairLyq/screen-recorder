@@ -12,6 +12,15 @@
 
 **前置：** 需先准备 `third_party/` 依赖（Task 1 会说明）。
 
+**本机构建环境（已核实）：**
+- VS2022 Community + MSVC 14.44 + Windows SDK 10.0.22621 ✅
+- **cmake/ctest 不在 PATH**，用 VS 自带版本。每个构建/测试命令前先：
+  ```bash
+  export PATH="/c/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin:$PATH"
+  ```
+  （或把 `cmake`/`ctest` 换成该目录下全路径）
+- FFmpeg 用 **GPL shared 版（9.0.2，含 libx264）**，放在 `third_party/ffmpeg/{include,lib,bin}`。
+
 ---
 
 ## 文件结构
@@ -214,6 +223,7 @@ done
 
 Run:
 ```bash
+export PATH="/c/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin:$PATH"
 cmake -S . -B build -G "Visual Studio 17 2022" -A x64
 cmake --build build --config Debug
 ```
