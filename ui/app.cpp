@@ -144,10 +144,7 @@ void App::open_settings() {
   if (recording_) { MessageBoxW(hwnd_, L"录制中不能改设置", L"提示", MB_OK); return; }
   if (show_settings_dialog(hwnd_, cfg_)) {
     save_settings(default_settings_path(), cfg_);
-    if (cfg_.region_enabled && cfg_.region.w > 0)
-      frame_.set_region(cfg_.region.x, cfg_.region.y, cfg_.region.w, cfg_.region.h);
-    else
-      frame_.hide();
+    // 区域每次录制时重新框选，设置对话框不碰区域框
   }
 }
 
