@@ -9,6 +9,7 @@ struct Rect {
 
 enum class EncoderKind { Auto, Nvenc, Qsv, Amf, X264 };
 enum class Quality { Low, Medium, High };
+enum class OutputFormat { Mp4, Webp };
 
 struct AudioTrack {
   bool enabled = false;
@@ -24,6 +25,7 @@ struct RecordConfig {
   int fps = 30;
   Quality quality = Quality::Medium;
   EncoderKind encoder = EncoderKind::Auto;
+  OutputFormat format = OutputFormat::Mp4;
   AudioTrack system_audio;
   AudioTrack microphone;
   bool include_cursor = true;

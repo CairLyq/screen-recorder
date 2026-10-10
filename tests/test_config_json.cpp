@@ -8,6 +8,7 @@ int main() {
   in.fps = 60;
   in.quality = Quality::High;
   in.encoder = EncoderKind::Qsv;
+  in.format = OutputFormat::Webp;
   in.region = Rect{5, 6, 700, 500};
   in.region_enabled = true;
   in.system_audio.enabled = true;
@@ -25,6 +26,7 @@ int main() {
   CHECK(out.fps == 60);
   CHECK(out.quality == Quality::High);
   CHECK(out.encoder == EncoderKind::Qsv);
+  CHECK(out.format == OutputFormat::Webp);
   CHECK(out.region.x == 5 && out.region.y == 6);
   CHECK(out.region.w == 700 && out.region.h == 500);
   CHECK(out.region_enabled);
@@ -41,5 +43,6 @@ int main() {
   CHECK(def.fps == 30);
   RecordConfig clamped = config_from_json(R"({"fps":0})");
   CHECK(clamped.fps == 1);
+  CHECK(config_from_json("{}").format == OutputFormat::Mp4);
   return 0;
 }

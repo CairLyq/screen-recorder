@@ -35,6 +35,12 @@ static EncoderKind enc_from_str(const std::string& s) {
   if (s == "x264") return EncoderKind::X264;
   return EncoderKind::Auto;
 }
+static const char* fmt_to_str(OutputFormat f) {
+  return f == OutputFormat::Webp ? "webp" : "mp4";
+}
+static OutputFormat fmt_from_str(const std::string& s) {
+  return s == "webp" ? OutputFormat::Webp : OutputFormat::Mp4;
+}
 
 void save_settings(const std::string& path, const RecordConfig& c) {
   json j;
@@ -46,6 +52,7 @@ void save_settings(const std::string& path, const RecordConfig& c) {
   j["fps"] = c.fps;
   j["quality"] = quality_to_str(c.quality);
   j["video_encoder"] = enc_to_str(c.encoder);
+  j["format"] = fmt_to_str(c.format);
   j["system_audio"] = {{"enabled", c.system_audio.enabled},
                        {"volume", c.system_audio.volume},
                        {"device", c.system_audio.device}};
@@ -79,6 +86,7 @@ RecordConfig load_settings(const std::string& path) {
     c.fps = j.value("fps", 30);
     c.quality = quality_from_str(j.value("quality", std::string("medium")));
     c.encoder = enc_from_str(j.value("video_encoder", std::string("auto")));
+    c.format = fmt_from_str(j.value("format", std::string("mp4")));
     if (j.contains("system_audio")) {
       c.system_audio.enabled = j["system_audio"].value("enabled", false);
       c.system_audio.volume = j["system_audio"].value("volume", 1.0f);
@@ -112,6 +120,7 @@ std::string config_to_json(const RecordConfig& c) {
   j["fps"] = c.fps;
   j["quality"] = quality_to_str(c.quality);
   j["video_encoder"] = enc_to_str(c.encoder);
+  j["format"] = fmt_to_str(c.format);
   j["system_audio"] = {{"enabled", c.system_audio.enabled},
                        {"volume", c.system_audio.volume},
                        {"device", c.system_audio.device}};
@@ -131,6 +140,7 @@ RecordConfig config_from_json(const std::string& body) {
     c.fps = std::clamp(j.value("fps", c.fps), 1, 240);
     c.quality = quality_from_str(j.value("quality", std::string("medium")));
     c.encoder = enc_from_str(j.value("video_encoder", std::string("auto")));
+    c.format = fmt_from_str(j.value("format", std::string("mp4")));
     c.region_enabled = j.value("region_enabled", c.region_enabled);
     c.include_cursor = j.value("include_cursor", c.include_cursor);
     if (j.contains("region")) {
