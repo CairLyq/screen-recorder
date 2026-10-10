@@ -28,22 +28,23 @@ bool App::init(HINSTANCE inst) {
       cfg_.output_dir = ".";
   }
 
-  WNDCLASSA wc = {};
+  WNDCLASSW wc = {};
   wc.lpfnWndProc = [](HWND h, UINT m, WPARAM w, LPARAM l) -> LRESULT {
-    App* self = (App*)GetWindowLongPtrA(h, GWLP_USERDATA);
+    App* self = (App*)GetWindowLongPtrW(h, GWLP_USERDATA);
     if (m == WM_NCCREATE) {
-      self = (App*)((CREATESTRUCTA*)l)->lpCreateParams;
-      SetWindowLongPtrA(h, GWLP_USERDATA, (LONG_PTR)self);
+      self = (App*)((CREATESTRUCTW*)l)->lpCreateParams;
+      SetWindowLongPtrW(h, GWLP_USERDATA, (LONG_PTR)self);
+      return TRUE;  // WM_NCCREATE 返回 FALSE 会让 CreateWindow 中止创建
     }
-    if (self) { self->on_message(h, m, w, l); return 0; }
-    return DefWindowProc(h, m, w, l);
+    if (self) return self->on_message(h, m, w, l);
+    return DefWindowProcW(h, m, w, l);
   };
   wc.hInstance = inst;
-  wc.lpszClassName = "ScreenRecUiClass";
-  if (!RegisterClassA(&wc)) LOGE("RegisterClassA failed: %lu", GetLastError());
-  hwnd_ = CreateWindowExA(0, wc.lpszClassName, "ScreenRecorder", 0, 0, 0, 0, 0,
+  wc.lpszClassName = L"ScreenRecUiClass";
+  if (!RegisterClassW(&wc)) LOGE("RegisterClassW failed: %lu", GetLastError());
+  hwnd_ = CreateWindowExW(0, wc.lpszClassName, L"ScreenRecorder", 0, 0, 0, 0, 0,
                           nullptr, nullptr, inst, this);
-  if (hwnd_ == nullptr) LOGE("CreateWindowExA failed: %lu", GetLastError());
+  if (hwnd_ == nullptr) { LOGE("CreateWindowExW failed: %lu", GetLastError()); return false; }
 
   toolbar_.create(inst, [this] { stop_recording(); });
   tray_.add(hwnd_, WM_TRAY);
@@ -51,7 +52,7 @@ bool App::init(HINSTANCE inst) {
                       [this] { quit(); });
   register_toggle_hotkey(hwnd_, VK_F9);
   LOGI("ui ready, output -> %s", cfg_.output_dir.c_str());
-  return hwnd_ != nullptr;
+  return true;
 }
 
 bool App::start_recording() {
@@ -130,30 +131,31 @@ void App::quit() {
   PostQuitMessage(0);
 }
 
-void App::on_message(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
+LRESULT App::on_message(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
   switch (msg) {
     case WM_TRAY:
       if (lp == WM_RBUTTONUP) tray_.show_menu(h);
       else if (lp == WM_LBUTTONDBLCLK) toggle();
-      break;
+      return 0;
     case WM_COMMAND:
       tray_.on_command(h, LOWORD(wp));
-      break;
+      return 0;
     case WM_HOTKEY:
       if (wp == 1) toggle();
-      break;
+      return 0;
     case WM_APP + 2:  // reader 结束 → 收尾
       if (reader_t_.joinable()) reader_t_.join();
       kill_recorder(proc_); proc_ = nullptr;
       toolbar_.hide();
-      break;
+      return 0;
     case WM_APP + 3: {  // reader 上报 Stats → 主线程更新悬浮条
       std::lock_guard<std::mutex> g(stats_mtx_);
       toolbar_.set_status(pending_elapsed_, pending_fps_);
-      break;
+      return 0;
     }
     case WM_APP + 4:  // reader 上报 Error
       MessageBoxW(hwnd_, L"录制出错", L"错误", MB_OK | MB_ICONERROR);
-      break;
+      return 0;
   }
+  return DefWindowProcW(h, msg, wp, lp);
 }

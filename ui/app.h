@@ -16,7 +16,7 @@ public:
   void toggle();          // 热键/托盘：开始或停止
   void open_settings();
   void quit();
-  void on_message(HWND h, UINT msg, WPARAM wp, LPARAM lp);
+  LRESULT on_message(HWND h, UINT msg, WPARAM wp, LPARAM lp);
   HWND hwnd() const { return hwnd_; }
 
 private:
