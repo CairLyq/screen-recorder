@@ -60,7 +60,6 @@ void AudioEncoder::flush(const std::function<void(AVPacket*)>& on_packet) {
   // 残余样本补零凑满一帧
   int fs = ctx_->frame_size;
   if (!pending_.empty()) {
-    int have = pending_.size() / channels_;
     pending_.resize(fs * channels_, 0.0f);
     av_frame_make_writable(frame_);
     for (int ch = 0; ch < channels_; ++ch) {
@@ -69,7 +68,6 @@ void AudioEncoder::flush(const std::function<void(AVPacket*)>& on_packet) {
     }
     frame_->pts = pts_;
     pts_ += fs;
-    (void)have;
     if (avcodec_send_frame(ctx_, frame_) >= 0) drain(on_packet);
     pending_.clear();
   }
