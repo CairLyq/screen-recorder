@@ -48,9 +48,7 @@ bool App::init(HINSTANCE inst) {
   if (hwnd_ == nullptr) { LOGE("CreateWindowExW failed: %lu", GetLastError()); return false; }
 
   toolbar_.create(inst, [this] { stop_recording(); });
-  frame_.create(inst);
-  if (cfg_.region_enabled && cfg_.region.w > 0)
-    frame_.set_region(cfg_.region.x, cfg_.region.y, cfg_.region.w, cfg_.region.h);
+  frame_.create(inst);  // 区域不持久化：启动时不恢复，每次录制重新框选
   tray_.add(hwnd_, WM_TRAY);
   tray_.set_callbacks([this] { toggle(); }, [this] { open_settings(); },
                       [this] { select_region(); }, [this] { quit(); });
@@ -65,18 +63,16 @@ bool App::select_region() {
   cfg_.region.x = r.left; cfg_.region.y = r.top;
   cfg_.region.w = r.right - r.left; cfg_.region.h = r.bottom - r.top;
   cfg_.region_enabled = true;
-  save_settings(default_settings_path(), cfg_);
   frame_.set_region(cfg_.region.x, cfg_.region.y, cfg_.region.w, cfg_.region.h);
   return true;
 }
 
 bool App::start_recording() {
   if (recording_) return false;
-  if (!cfg_.region_enabled || cfg_.region.w <= 0) {
-    if (!select_region()) {
-      MessageBoxW(hwnd_, L"未设置录制区域", L"提示", MB_OK | MB_ICONINFORMATION);
-      return false;
-    }
+  // 每次录制都重新框选区域（区域不保存）
+  if (!select_region()) {
+    MessageBoxW(hwnd_, L"未设置录制区域", L"提示", MB_OK | MB_ICONINFORMATION);
+    return false;
   }
   pipe_name_ = "\\\\.\\pipe\\screenrec-default";
   proc_ = spawn_recorder(exe_dir() + "\\recorder.exe", pipe_name_);
