@@ -19,10 +19,6 @@ public:
   Stats stats() const;
 
 private:
-  void video_loop();
-  void audio_loop();
-  void encode_loop();
-
   RecordConfig cfg_;
   std::atomic<bool> running_{false};
   std::atomic<int64_t> dropped_{0};
@@ -34,7 +30,6 @@ private:
   std::mutex vmtx_;
   struct VItem { std::vector<uint8_t> nv12; int pts; };
   std::vector<VItem> vq_;
-  size_t vcap_ = 0;
 
   // 音频 FIFO（已混好的 float 交错）
   std::mutex amtx_;
