@@ -41,7 +41,9 @@ bool Muxer::write(AVPacket* pkt, AVCodecContext* from) {
   if (!st) return false;
   pkt->stream_index = st->index;
   av_packet_rescale_ts(pkt, from->time_base, st->time_base);
-  return av_interleaved_write_frame(fmt_, pkt) >= 0;
+  int res = av_interleaved_write_frame(fmt_, pkt);
+  if (res < 0) { if (!failed_) { failed_ = true; LOGE("mux write failed"); } return false; }
+  return true;
 }
 
 void Muxer::close() {

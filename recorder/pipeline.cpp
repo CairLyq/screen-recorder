@@ -36,7 +36,7 @@ bool Pipeline::start(const RecordConfig& cfg, std::string& out_path) {
   DesktopCapture* cap = new DesktopCapture();
   if (!cap->init(cfg_.monitor_index, cfg_.region_enabled ? cfg_.region : Rect{})) {
     LOGE("capture init failed");
-    delete cap;
+    cap->close(); delete cap;
     return false;
   }
 
@@ -54,20 +54,20 @@ bool Pipeline::start(const RecordConfig& cfg, std::string& out_path) {
   if (!v->open(cap->output_rect().w, cap->output_rect().h, cfg_.fps,
                cfg_.quality, cfg_.encoder, vn)) {
     LOGE("video encoder open failed");
-    delete v; delete cap; return false;
+    v->close(); delete v; cap->close(); delete cap; return false;
   }
   venc_ = v;
   LOGI("chosen video encoder: %s", vn.c_str());
 
   AudioEncoder* a = new AudioEncoder();
   std::string an;
-  if (!a->open(48000, 2, an)) { delete a; delete v; delete cap; return false; }
+  if (!a->open(48000, 2, an)) { a->close(); delete a; v->close(); delete v; cap->close(); delete cap; return false; }
   aenc_ = a;
 
   Muxer* mux = new Muxer();
   if (!mux->open(out_path_, v->ctx(), cfg_.system_audio.enabled || cfg_.microphone.enabled ? a->ctx() : nullptr)) {
     LOGE("mux open failed");
-    delete mux; delete a; delete v; delete cap; return false;
+    mux->close(); delete mux; a->close(); delete a; v->close(); delete v; cap->close(); delete cap; return false;
   }
 
   start_qpc_ = now_qpc();
@@ -78,6 +78,7 @@ bool Pipeline::start(const RecordConfig& cfg, std::string& out_path) {
     int w = f->width, h = f->height;
     SwsContext* sws = sws_getContext(w, h, AV_PIX_FMT_BGRA, w, h, AV_PIX_FMT_NV12,
                                      SWS_BILINEAR, nullptr, nullptr, nullptr);
+    if (!sws) { LOGE("sws_getContext failed"); av_frame_free(&f); cap->close(); delete cap; return; }
     CapturedFrame cf;
     int frames = 0;
     int64_t t0 = now_qpc();
@@ -85,8 +86,9 @@ bool Pipeline::start(const RecordConfig& cfg, std::string& out_path) {
     std::vector<uint8_t> last_bgra;
     int64_t next_pts = 0;
     int64_t frame_dur = qpc_freq_ / cfg_.fps;
+    int frame_dur_ms = cfg_.fps > 0 ? 1000 / cfg_.fps : 33;
     while (running_) {
-      bool got = cap->next(cf, 500);
+      bool got = cap->next(cf, frame_dur_ms);
       if (got) {
         if (cfg_.include_cursor) {
           std::vector<uint8_t> cb;
@@ -204,7 +206,7 @@ bool Pipeline::start(const RecordConfig& cfg, std::string& out_path) {
           std::vector<float> out(n * 4 + 64);
           int got = rsys->convert(d, n, out.data(), (int)out.size());
           std::lock_guard<std::mutex> g(amtx_);
-          sysbuf.assign(out.begin(), out.begin() + got * 2);
+          sysbuf.insert(sysbuf.end(), out.begin(), out.begin() + got * 2);
         });
       });
     }
@@ -214,7 +216,7 @@ bool Pipeline::start(const RecordConfig& cfg, std::string& out_path) {
           std::vector<float> out(n * 4 + 64);
           int got = rmic->convert(d, n, out.data(), (int)out.size());
           std::lock_guard<std::mutex> g(amtx_);
-          micbuf.assign(out.begin(), out.begin() + got * 2);
+          micbuf.insert(micbuf.end(), out.begin(), out.begin() + got * 2);
         });
       });
     }

@@ -5,6 +5,7 @@
 #include "recorder/ipc_server.h"
 #include "recorder/muxer.h"
 #include <nlohmann/json.hpp>
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <string>
@@ -19,7 +20,7 @@ static RecordConfig config_from_json(const std::string& body) {
     json j = json::parse(body);
     c.output_dir = j.value("output_dir", std::string("."));
     c.monitor_index = j.value("monitor_index", 0);
-    c.fps = j.value("fps", 30);
+    c.fps = std::clamp(j.value("fps", 30), 1, 240);
     c.include_cursor = j.value("include_cursor", true);
     if (j.contains("region")) {
       c.region.x = j["region"].value("x", 0);
@@ -92,6 +93,7 @@ static int run_ipc(const std::string& pipe_name) {
 }
 
 int main(int argc, char** argv) {
+  SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
   std::string mode = "ipc";
   std::string pipe_name = "\\\\.\\pipe\\screenrec-default";
   std::string out_dir = ".";

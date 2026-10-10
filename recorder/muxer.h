@@ -23,4 +23,5 @@ private:
   AVStream* astream_ = nullptr;
   AVCodecContext* audio_ctx_ = nullptr;
   std::string error_;
+  bool failed_ = false;
 };

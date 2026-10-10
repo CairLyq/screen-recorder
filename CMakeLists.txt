@@ -34,7 +34,7 @@ add_library(recorder_core STATIC
   recorder/wasapi_capture.cpp
   recorder/pipeline.cpp)
 target_link_libraries(recorder_core PUBLIC
-  common ffmpeg d3d11 dxgi ole32 oleaut32 uuid shlwapi)
+  common ffmpeg d3d11 dxgi ole32 oleaut32 uuid shlwapi user32)
 
 add_executable(recorder recorder/main.cpp)
 target_link_libraries(recorder PRIVATE recorder_core)

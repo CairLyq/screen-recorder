@@ -64,6 +64,8 @@ bool DesktopCapture::init(int monitor_index, const Rect& region) {
   if (crop_.y + crop_.h > full_h) crop_.h = full_h - crop_.y;
   if (crop_.w < 0) crop_.w = 0;
   if (crop_.h < 0) crop_.h = 0;
+  crop_.w &= ~1;
+  crop_.h &= ~1;
   tex_w_ = full_w;
   tex_h_ = full_h;
 
