@@ -2,6 +2,7 @@
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <cstdlib>
+#include <filesystem>
 #include <fstream>
 
 using nlohmann::json;
@@ -52,6 +53,8 @@ void save_settings(const std::string& path, const RecordConfig& c) {
                      {"volume", c.microphone.volume},
                      {"device", c.microphone.device}};
   j["include_cursor"] = c.include_cursor;
+  std::error_code ec;
+  std::filesystem::create_directories(std::filesystem::path(path).parent_path(), ec);
   std::ofstream f(path);
   f << j.dump(2);
 }
