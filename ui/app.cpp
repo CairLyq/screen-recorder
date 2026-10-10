@@ -57,7 +57,6 @@ bool App::init(HINSTANCE inst) {
 
 bool App::start_recording() {
   if (recording_) return false;
-  if (reader_t_.joinable()) reader_t_.join();
   pipe_name_ = "\\\\.\\pipe\\screenrec-default";
   proc_ = spawn_recorder(exe_dir() + "\\recorder.exe", pipe_name_);
   if (!proc_) { MessageBoxW(hwnd_, L"启动录制进程失败", L"错误", MB_OK | MB_ICONERROR); return false; }
@@ -66,53 +65,58 @@ bool App::start_recording() {
     kill_recorder(proc_); proc_ = nullptr;
     return false;
   }
-  Message ready;
-  if (!client_.read_message(ready)) { MessageBoxW(hwnd_, L"recorder 未响应", L"错误", MB_OK | MB_ICONERROR); kill_recorder(proc_); proc_ = nullptr; client_.close(); return false; }
   client_.send_message({MsgType::Start, config_to_json(cfg_)});
-
   recording_ = true;
-  reader_run_ = true;
-  reader_t_ = std::thread([this] { reader_loop(); });
   toolbar_.show();
+  SetTimer(hwnd_, TIMER_POLL, 20, nullptr);
   return true;
 }
 
 void App::stop_recording() {
+  LOGI("ui stop_recording, recording=%d", (int)(bool)recording_);
   if (!recording_) return;
   client_.send_message({MsgType::Stop, ""});
-  // reader 线程收到 Done 后收尾
+  LOGI("ui -> Stop sent");
+  // 等 poll_ipc 收到 Done 后收尾
 }
 
-void App::reader_loop() {
-  while (reader_run_) {
+void App::poll_ipc() {
+  for (;;) {
     Message m;
-    if (!client_.read_message(m)) break;
+    int r = client_.poll_message(m);
+    if (r < 0) { LOGE("ui << pipe EOF"); end_session(); return; }
+    if (r == 0) break;
+    LOGI("ui << type=%d len=%zu", (int)m.type, m.payload.size());
     if (m.type == MsgType::State) {
       LOGI("state: %s", m.payload.c_str());
     } else if (m.type == MsgType::Stats) {
       try {
         json j = json::parse(m.payload);
-        {
-          std::lock_guard<std::mutex> g(stats_mtx_);
-          pending_elapsed_ = j.value("elapsed_ms", (int64_t)0);
-          pending_fps_ = j.value("fps", 0.0);
-        }
-        PostMessageA(hwnd_, WM_APP + 3, 0, 0);
+        toolbar_.set_status(j.value("elapsed_ms", (int64_t)0), j.value("fps", 0.0));
       } catch (...) {}
     } else if (m.type == MsgType::Error) {
-      PostMessageA(hwnd_, WM_APP + 4, 0, 0);
-      break;
+      MessageBoxW(hwnd_, L"录制出错", L"错误", MB_OK | MB_ICONERROR);
+      end_session();
+      return;
     } else if (m.type == MsgType::Done) {
-      break;
+      end_session();
+      return;
     }
   }
-  recording_ = false;
-  reader_run_ = false;
-  client_.close();
-  PostMessageA(hwnd_, WM_APP + 2, 0, 0);  // 通知主线程收尾
 }
 
-void App::toggle() { if (recording_) stop_recording(); else start_recording(); }
+void App::end_session() {
+  KillTimer(hwnd_, TIMER_POLL);
+  kill_recorder(proc_); proc_ = nullptr;
+  client_.close();
+  recording_ = false;
+  toolbar_.hide();
+}
+
+void App::toggle() {
+  LOGI("ui toggle, recording=%d", (int)(bool)recording_);
+  if (recording_) stop_recording(); else start_recording();
+}
 
 void App::open_settings() {
   if (recording_) { MessageBoxW(hwnd_, L"录制中不能改设置", L"提示", MB_OK); return; }
@@ -122,10 +126,8 @@ void App::open_settings() {
 }
 
 void App::quit() {
-  if (recording_) stop_recording();
-  kill_recorder(proc_); proc_ = nullptr;
-  if (reader_t_.joinable()) reader_t_.join();
-  client_.close();
+  if (recording_) client_.send_message({MsgType::Stop, ""});
+  end_session();
   tray_.remove();
   unregister_toggle_hotkey(hwnd_);
   PostQuitMessage(0);
@@ -143,18 +145,8 @@ LRESULT App::on_message(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
     case WM_HOTKEY:
       if (wp == 1) toggle();
       return 0;
-    case WM_APP + 2:  // reader 结束 → 收尾
-      if (reader_t_.joinable()) reader_t_.join();
-      kill_recorder(proc_); proc_ = nullptr;
-      toolbar_.hide();
-      return 0;
-    case WM_APP + 3: {  // reader 上报 Stats → 主线程更新悬浮条
-      std::lock_guard<std::mutex> g(stats_mtx_);
-      toolbar_.set_status(pending_elapsed_, pending_fps_);
-      return 0;
-    }
-    case WM_APP + 4:  // reader 上报 Error
-      MessageBoxW(hwnd_, L"录制出错", L"错误", MB_OK | MB_ICONERROR);
+    case WM_TIMER:
+      if (wp == TIMER_POLL) poll_ipc();
       return 0;
   }
   return DefWindowProcW(h, msg, wp, lp);

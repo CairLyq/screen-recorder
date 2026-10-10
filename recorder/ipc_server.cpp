@@ -39,6 +39,28 @@ bool IpcServer::read_message(Message& out) {
   }
 }
 
+int IpcServer::poll_message(Message& out) {
+  HANDLE h = static_cast<HANDLE>(handle_);
+  size_t consumed = 0;
+  if (decode_message(buf_.data(), buf_.size(), out, consumed)) {
+    buf_.erase(buf_.begin(), buf_.begin() + consumed);
+    return 1;
+  }
+  DWORD avail = 0;
+  if (!PeekNamedPipe(h, nullptr, 0, nullptr, &avail, nullptr)) return -1;
+  if (avail == 0) return 0;
+  uint8_t tmp[4096];
+  DWORD got = 0;
+  BOOL ok = ReadFile(h, tmp, sizeof(tmp), &got, nullptr);
+  if (got > 0) buf_.insert(buf_.end(), tmp, tmp + got);
+  if (!ok && GetLastError() != ERROR_MORE_DATA) return -1;
+  if (decode_message(buf_.data(), buf_.size(), out, consumed)) {
+    buf_.erase(buf_.begin(), buf_.begin() + consumed);
+    return 1;
+  }
+  return 0;
+}
+
 bool IpcServer::send_message(const Message& m) {
   std::lock_guard<std::mutex> g(send_mtx_);
   HANDLE h = static_cast<HANDLE>(handle_);

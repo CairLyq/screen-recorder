@@ -5,9 +5,7 @@
 #include "ui/tray.h"
 #include <windows.h>
 #include <atomic>
-#include <mutex>
 #include <string>
-#include <thread>
 
 // 应用状态与控制流。单实例。
 class App {
@@ -22,7 +20,8 @@ public:
 private:
   bool start_recording();
   void stop_recording();
-  void reader_loop();     // 后台线程：收 State/Stats/Done/Error
+  void poll_ipc();        // WM_TIMER：非阻塞收 State/Stats/Done/Error
+  void end_session();     // 收尾：停 timer、杀进程、关管道
 
   HINSTANCE inst_ = nullptr;
   HWND hwnd_ = nullptr;
@@ -32,11 +31,7 @@ private:
   void* proc_ = nullptr;      // recorder 进程 HANDLE
   RecordConfig cfg_;
   std::atomic<bool> recording_{false};
-  std::atomic<bool> reader_run_{false};
-  std::thread reader_t_;
-  std::mutex stats_mtx_;
-  int64_t pending_elapsed_ = 0;
-  double pending_fps_ = 0.0;
   std::string pipe_name_;
   static constexpr UINT WM_TRAY = WM_APP + 1;
+  static constexpr UINT_PTR TIMER_POLL = 1;
 };

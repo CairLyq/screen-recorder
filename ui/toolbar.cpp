@@ -1,4 +1,5 @@
 #include "ui/toolbar.h"
+#include "common/log.h"
 #include <cstdio>
 #include <string>
 
@@ -26,9 +27,11 @@ LRESULT Toolbar::handle(HWND h, UINT m, WPARAM w, LPARAM l) {
                       44, 12, 150, 16, h, (HMENU)IDC_LABEL, nullptr, nullptr);
       CreateWindowExW(0, L"BUTTON", L"停止", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
                       198, 8, 56, 24, h, (HMENU)IDC_STOP, nullptr, nullptr);
+      LOGI("toolbar WM_CREATE, label=%p", (void*)GetDlgItem(h, IDC_LABEL));
       return 0;
     }
     case WM_COMMAND:
+      LOGI("toolbar WM_COMMAND id=%d", LOWORD(w));
       if (LOWORD(w) == IDC_STOP && on_stop_) on_stop_();
       return 0;
     case WM_LBUTTONDOWN:
@@ -69,6 +72,7 @@ void Toolbar::show() {
 void Toolbar::hide() { if (hwnd_) ShowWindow(hwnd_, SW_HIDE); }
 
 void Toolbar::set_status(int64_t elapsed_ms, double fps) {
+  LOGI("toolbar set_status elapsed=%lld fps=%.1f hwnd=%p", (long long)elapsed_ms, fps, (void*)hwnd_);
   if (!hwnd_) return;
   int sec = (int)(elapsed_ms / 1000);
   wchar_t buf[64];

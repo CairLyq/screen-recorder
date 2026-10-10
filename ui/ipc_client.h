@@ -11,6 +11,7 @@ public:
   bool connect(const std::string& pipe_name, int retries, int delay_ms);
   bool send_message(const Message& m);
   bool read_message(Message& out);
+  int poll_message(Message& out);  // 1=有消息, 0=暂无, -1=断开/错误
   void close();
 
 private:

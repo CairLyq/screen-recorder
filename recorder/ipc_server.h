@@ -10,6 +10,7 @@ public:
   bool create(const std::string& pipe_name);
   bool wait_client();
   bool read_message(Message& out);
+  int poll_message(Message& out);  // 1=有消息, 0=暂无, -1=断开/错误
   bool send_message(const Message& m);
   void close();
 

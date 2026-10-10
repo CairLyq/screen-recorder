@@ -5,11 +5,9 @@
 #include "recorder/ipc_server.h"
 #include "recorder/muxer.h"
 #include <nlohmann/json.hpp>
-#include <atomic>
 #include <cstdio>
 #include <cstdlib>
 #include <string>
-#include <thread>
 #include <windows.h>
 
 using nlohmann::json;
@@ -30,6 +28,8 @@ static int run_headless(int seconds, const std::string& out_dir) {
   return 0;
 }
 
+static int64_t now_ms() { return (int64_t)GetTickCount64(); }
+
 static int run_ipc(const std::string& pipe_name) {
   IpcServer server;
   if (!server.create(pipe_name)) { LOGE("pipe create failed"); return 3; }
@@ -38,46 +38,49 @@ static int run_ipc(const std::string& pipe_name) {
   server.send_message({MsgType::Ready, R"({"version":1})"});
 
   Pipeline p;
-  std::atomic<bool> recording{false};
-  std::thread stats_t;
-  auto join_stats = [&] { if (stats_t.joinable()) stats_t.join(); };
-
+  bool recording = false;
+  int64_t last_stats = 0;
   for (;;) {
     Message m;
-    if (!server.read_message(m)) { LOGI("pipe closed"); break; }
-    if (m.type == MsgType::Start) {
-      RecordConfig cfg = config_from_json(m.payload);
-      std::string path;
-      if (p.start(cfg, path)) {
-        json j; j["path"] = path;
-        server.send_message({MsgType::State, j.dump()});
-        recording = true;
-        stats_t = std::thread([&] {
-          while (recording) {
-            Sleep(1000);
-            if (!recording) break;
-            Stats s = p.stats();
-            json sj;
-            sj["fps"] = s.fps;
-            sj["elapsed_ms"] = s.elapsed_ms;
-            sj["dropped_frames"] = s.dropped_frames;
-            server.send_message({MsgType::Stats, sj.dump()});
-          }
-        });
-      } else {
-        server.send_message({MsgType::Error, R"({"code":"start_failed"})"});
+    int r = server.poll_message(m);
+    if (r < 0) { LOGI("pipe closed"); break; }
+    if (r == 1) {
+      if (m.type == MsgType::Start) {
+        RecordConfig cfg = config_from_json(m.payload);
+        std::string path;
+        if (p.start(cfg, path)) {
+          recording = true;
+          last_stats = now_ms();
+          json j; j["path"] = path;
+          server.send_message({MsgType::State, j.dump()});
+        } else {
+          server.send_message({MsgType::Error, R"({"code":"start_failed"})"});
+        }
+      } else if (m.type == MsgType::Stop) {
+        LOGI("rec got Stop");
+        p.stop();
+        recording = false;
+        server.send_message({MsgType::Done, R"({"ok":true})"});
+      } else if (m.type == MsgType::Ping) {
+        server.send_message({MsgType::State, R"("alive")"});
       }
-    } else if (m.type == MsgType::Stop) {
-      p.stop();
-      recording = false;
-      join_stats();
-      server.send_message({MsgType::Done, R"({"ok":true})"});
-    } else if (m.type == MsgType::Ping) {
-      server.send_message({MsgType::State, R"("alive")"});
     }
+    if (recording) {
+      int64_t now = now_ms();
+      if (now - last_stats >= 1000) {
+        last_stats = now;
+        Stats s = p.stats();
+        json sj;
+        sj["fps"] = s.fps;
+        sj["elapsed_ms"] = s.elapsed_ms;
+        sj["dropped_frames"] = s.dropped_frames;
+        LOGI("rec -> Stats fps=%.1f elapsed=%lld", s.fps, (long long)s.elapsed_ms);
+        server.send_message({MsgType::Stats, sj.dump()});
+      }
+    }
+    Sleep(5);
   }
   recording = false;
-  join_stats();
   p.stop();
   server.close();
   return 0;
