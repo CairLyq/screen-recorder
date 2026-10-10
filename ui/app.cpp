@@ -55,6 +55,7 @@ bool App::init(HINSTANCE inst) {
 
 bool App::start_recording() {
   if (recording_) return false;
+  if (reader_t_.joinable()) reader_t_.join();
   pipe_name_ = "\\\\.\\pipe\\screenrec-default";
   proc_ = spawn_recorder(exe_dir() + "\\recorder.exe", pipe_name_);
   if (!proc_) { MessageBoxA(hwnd_, "启动录制进程失败", "错误", MB_OK | MB_ICONERROR); return false; }
@@ -64,7 +65,7 @@ bool App::start_recording() {
     return false;
   }
   Message ready;
-  client_.read_message(ready);  // Ready
+  if (!client_.read_message(ready)) { MessageBoxA(hwnd_, "recorder 未响应", "错误", MB_OK | MB_ICONERROR); kill_recorder(proc_); proc_ = nullptr; client_.close(); return false; }
   client_.send_message({MsgType::Start, config_to_json(cfg_)});
 
   recording_ = true;
@@ -89,10 +90,16 @@ void App::reader_loop() {
     } else if (m.type == MsgType::Stats) {
       try {
         json j = json::parse(m.payload);
-        toolbar_.set_status(j.value("elapsed_ms", (int64_t)0), j.value("fps", 0.0));
+        {
+          std::lock_guard<std::mutex> g(stats_mtx_);
+          pending_elapsed_ = j.value("elapsed_ms", (int64_t)0);
+          pending_fps_ = j.value("fps", 0.0);
+        }
+        PostMessageA(hwnd_, WM_APP + 3, 0, 0);
       } catch (...) {}
     } else if (m.type == MsgType::Error) {
-      MessageBoxA(hwnd_, "录制出错", "错误", MB_OK | MB_ICONERROR);
+      PostMessageA(hwnd_, WM_APP + 4, 0, 0);
+      break;
     } else if (m.type == MsgType::Done) {
       break;
     }
@@ -114,8 +121,9 @@ void App::open_settings() {
 
 void App::quit() {
   if (recording_) stop_recording();
-  if (reader_t_.joinable()) reader_t_.join();
   kill_recorder(proc_); proc_ = nullptr;
+  if (reader_t_.joinable()) reader_t_.join();
+  client_.close();
   tray_.remove();
   unregister_toggle_hotkey(hwnd_);
   PostQuitMessage(0);
@@ -137,6 +145,14 @@ void App::on_message(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
       if (reader_t_.joinable()) reader_t_.join();
       kill_recorder(proc_); proc_ = nullptr;
       toolbar_.hide();
+      break;
+    case WM_APP + 3: {  // reader 上报 Stats → 主线程更新悬浮条
+      std::lock_guard<std::mutex> g(stats_mtx_);
+      toolbar_.set_status(pending_elapsed_, pending_fps_);
+      break;
+    }
+    case WM_APP + 4:  // reader 上报 Error
+      MessageBoxA(hwnd_, "录制出错", "错误", MB_OK | MB_ICONERROR);
       break;
   }
 }

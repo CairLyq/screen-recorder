@@ -23,7 +23,6 @@ static int combo_sel(HWND dlg, int id) {
 static const char* kFps[] = {"30", "60"};
 static const char* kQuality[] = {"low", "medium", "high"};
 static const char* kEncoder[] = {"auto", "nvenc", "qsv", "amf", "x264"};
-static const char* kHotkey[] = {"F9", "F10", "F11", "F12"};
 
 static INT_PTR CALLBACK proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp) {
   static RecordConfig* cfg = nullptr;
@@ -39,7 +38,6 @@ static INT_PTR CALLBACK proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp) {
       fill_combo(dlg, IDC_FPS, kFps, 2, cfg->fps == 60 ? 1 : 0);
       fill_combo(dlg, IDC_QUALITY, kQuality, 3, (int)cfg->quality);
       fill_combo(dlg, IDC_ENCODER, kEncoder, 5, (int)cfg->encoder);
-      fill_combo(dlg, IDC_HOTKEY, kHotkey, 4, 0);
 
       SetDlgItemTextA(dlg, IDC_OUTDIR, cfg->output_dir.c_str());
       char b[16];
@@ -90,8 +88,12 @@ static INT_PTR CALLBACK proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp) {
           cfg->system_audio.enabled = IsDlgButtonChecked(dlg, IDC_SYSAUD) == BST_CHECKED;
           cfg->microphone.enabled = IsDlgButtonChecked(dlg, IDC_MIC) == BST_CHECKED;
           cfg->include_cursor = IsDlgButtonChecked(dlg, IDC_CURSOR) == BST_CHECKED;
-          cfg->system_audio.volume = GetDlgItemInt(dlg, IDC_SYSAUD_VOL, nullptr, FALSE) / 100.0f;
-          cfg->microphone.volume = GetDlgItemInt(dlg, IDC_MIC_VOL, nullptr, FALSE) / 100.0f;
+          int sv = GetDlgItemInt(dlg, IDC_SYSAUD_VOL, nullptr, FALSE);
+          if (sv < 0) sv = 0; if (sv > 100) sv = 100;
+          cfg->system_audio.volume = sv / 100.0f;
+          int mv = GetDlgItemInt(dlg, IDC_MIC_VOL, nullptr, FALSE);
+          if (mv < 0) mv = 0; if (mv > 100) mv = 100;
+          cfg->microphone.volume = mv / 100.0f;
           if (g_has_pending_region) {
             cfg->region.x = g_pending_region.left;
             cfg->region.y = g_pending_region.top;

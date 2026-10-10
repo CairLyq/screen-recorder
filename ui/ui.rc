@@ -27,8 +27,6 @@ BEGIN
     LTEXT           "输出目录:", -1, 12, 180, 50, 10
     EDITTEXT        IDC_OUTDIR, 70, 178, 130, 13, ES_AUTOHSCROLL
     PUSHBUTTON      "浏览...", IDC_BROWSE, 204, 178, 44, 14
-    LTEXT           "开始/停止热键:", -1, 12, 200, 70, 10
-    COMBOBOX        IDC_HOTKEY, 90, 198, 90, 60, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     DEFPUSHBUTTON   "确定", IDOK, 150, 210, 44, 14
     PUSHBUTTON      "取消", IDCANCEL, 200, 210, 44, 14
 END

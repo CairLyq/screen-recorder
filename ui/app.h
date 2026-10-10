@@ -5,6 +5,7 @@
 #include "ui/tray.h"
 #include <windows.h>
 #include <atomic>
+#include <mutex>
 #include <string>
 #include <thread>
 
@@ -33,6 +34,9 @@ private:
   std::atomic<bool> recording_{false};
   std::atomic<bool> reader_run_{false};
   std::thread reader_t_;
+  std::mutex stats_mtx_;
+  int64_t pending_elapsed_ = 0;
+  double pending_fps_ = 0.0;
   std::string pipe_name_;
   static constexpr UINT WM_TRAY = WM_APP + 1;
 };

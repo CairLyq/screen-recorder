@@ -45,6 +45,7 @@ void Tray::show_menu(HWND owner) {
   GetCursorPos(&p);
   SetForegroundWindow(owner);
   TrackPopupMenu(menu, TPM_RIGHTBUTTON, p.x, p.y, 0, owner, nullptr);
+  PostMessageA(owner, WM_NULL, 0, 0);
   DestroyMenu(menu);
 }
 
