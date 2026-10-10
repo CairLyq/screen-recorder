@@ -15,5 +15,6 @@
 #define IDC_OUTDIR      1012
 #define IDC_BROWSE      1013
 #define IDC_HOTKEY      1014
+#define IDC_FORMAT      1015
 #define ID_OK           1
 #define ID_CANCEL       2

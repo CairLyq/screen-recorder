@@ -38,6 +38,7 @@ static int combo_sel(HWND dlg, int id) {
 static const wchar_t* kFps[] = {L"30", L"60"};
 static const wchar_t* kQuality[] = {L"low", L"medium", L"high"};
 static const wchar_t* kEncoder[] = {L"auto", L"nvenc", L"qsv", L"amf", L"x264"};
+static const wchar_t* kFormat[] = {L"MP4", L"WebP"};
 
 static INT_PTR CALLBACK proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp) {
   static RecordConfig* cfg = nullptr;
@@ -51,6 +52,7 @@ static INT_PTR CALLBACK proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp) {
       SendMessage(cbm, CB_SETCURSEL, cfg->monitor_index, 0);
 
       fill_combo(dlg, IDC_FPS, kFps, 2, cfg->fps == 60 ? 1 : 0);
+      fill_combo(dlg, IDC_FORMAT, kFormat, 2, cfg->format == OutputFormat::Webp ? 1 : 0);
       fill_combo(dlg, IDC_QUALITY, kQuality, 3, (int)cfg->quality);
       fill_combo(dlg, IDC_ENCODER, kEncoder, 5, (int)cfg->encoder);
 
@@ -95,6 +97,7 @@ static INT_PTR CALLBACK proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp) {
         case IDOK: {
           cfg->monitor_index = combo_sel(dlg, IDC_MONITOR);
           cfg->fps = combo_sel(dlg, IDC_FPS) == 1 ? 60 : 30;
+          cfg->format = combo_sel(dlg, IDC_FORMAT) == 1 ? OutputFormat::Webp : OutputFormat::Mp4;
           cfg->quality = (Quality)combo_sel(dlg, IDC_QUALITY);
           cfg->encoder = (EncoderKind)combo_sel(dlg, IDC_ENCODER);
           wchar_t path[MAX_PATH] = {};
