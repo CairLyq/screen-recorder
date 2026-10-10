@@ -57,6 +57,7 @@ target_link_libraries(recorder PRIVATE recorder_core)
 
 # ui.rc 必须挂到 exe 目标上：放进静态库会被链接器丢弃（无符号引用）
 add_executable(ui WIN32 ui/main.cpp ui/app.cpp ui/ui.rc)
+set_target_properties(ui PROPERTIES OUTPUT_NAME "屏幕录制")
 target_link_libraries(ui PRIVATE ui_widgets ui_core common)
 add_custom_command(TARGET ui POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E copy_if_different
