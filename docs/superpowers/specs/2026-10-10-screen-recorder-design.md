@@ -68,7 +68,7 @@ FFmpeg 使用 LGPL 动态库（不静态链接 GPL 组件），随程序分发 `
 
 载体：Windows 命名管道（message mode），管道名 `\\.\pipe\screenrec-<pid>`。
 
-角色：UI 进程是管道**服务端**（`CreateNamedPipe` 等待连接），recorder 启动后作为**客户端**（`CreateFile`）连上。
+角色：**recorder 进程是管道服务端**（`CreateNamedPipe` 建管道、`ConnectNamedPipe` 等待连接），**UI 进程是客户端**（`CreateFile` 连接；recorder 可能尚未就绪，故需重试）。UI 按需启动 recorder 子进程。
 
 消息统一为「4 字节小端长度 + JSON 体」。命令集：
 
