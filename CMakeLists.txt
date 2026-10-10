@@ -36,6 +36,11 @@ add_library(recorder_core STATIC
 target_link_libraries(recorder_core PUBLIC
   common ffmpeg d3d11 dxgi ole32 oleaut32 uuid shlwapi user32)
 
+add_library(ui_core STATIC
+  ui/ipc_client.cpp
+  ui/recorder_process.cpp)
+target_link_libraries(ui_core PUBLIC common)
+
 add_executable(recorder recorder/main.cpp)
 target_link_libraries(recorder PRIVATE recorder_core)
 
@@ -47,9 +52,14 @@ add_custom_command(TARGET recorder POST_BUILD
 enable_testing()
 set(TESTS
   test_ipc_message test_settings test_audio_mixer
-  test_cursor_compositor test_encoder_mux test_ipc_server test_config_json)
+  test_cursor_compositor test_encoder_mux test_ipc_server test_config_json
+  test_ipc_client)
 foreach(t ${TESTS})
   add_executable(${t} tests/${t}.cpp)
-  target_link_libraries(${t} PRIVATE recorder_core)
+  if(t STREQUAL "test_ipc_client")
+    target_link_libraries(${t} PRIVATE ui_core recorder_core)
+  else()
+    target_link_libraries(${t} PRIVATE recorder_core)
+  endif()
   add_test(NAME ${t} COMMAND ${t})
 endforeach()
