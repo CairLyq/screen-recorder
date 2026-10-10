@@ -21,6 +21,7 @@ private:
   bool hover_ = false;
   bool pressed_ = false;
   int64_t elapsed_ = 0;
+  int last_sec_ = -1;  // 上次绘制的整秒，用于节流重绘
   HFONT font_ = nullptr;  // 缓存，WM_DESTROY 释放
   static LRESULT CALLBACK wnd_proc(HWND, UINT, WPARAM, LPARAM);
   LRESULT handle(HWND, UINT, WPARAM, LPARAM);

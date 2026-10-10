@@ -170,7 +170,11 @@ void Toolbar::set_recording(bool recording) {
 
 void Toolbar::set_elapsed(int64_t ms) {
   elapsed_ = ms;
-  if (hwnd_) InvalidateRect(hwnd_, nullptr, FALSE);
+  int sec = (int)(ms / 1000);
+  if (sec != last_sec_) {
+    last_sec_ = sec;
+    if (hwnd_) InvalidateRect(hwnd_, nullptr, FALSE);
+  }
 }
 
 void Toolbar::set_saving(bool saving) {

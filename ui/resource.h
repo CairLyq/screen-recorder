@@ -5,8 +5,6 @@
 #define IDC_FPS         1002
 #define IDC_QUALITY     1003
 #define IDC_ENCODER     1004
-#define IDC_REGION      1005
-#define IDC_REGION_INFO 1006
 #define IDC_SYSAUD      1007
 #define IDC_SYSAUD_VOL  1008
 #define IDC_MIC         1009

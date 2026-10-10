@@ -88,6 +88,7 @@ bool App::start_recording() {
   }
   client_.send_message({MsgType::Start, config_to_json(cfg_)});
   recording_ = true;
+  rec_start_tick_ = GetTickCount64();
   toolbar_.set_recording(true);
   toolbar_.set_saving(false);
   SetTimer(hwnd_, TIMER_POLL, 20, nullptr);
@@ -170,7 +171,10 @@ LRESULT App::on_message(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
       if (wp == 1) toggle();
       return 0;
     case WM_TIMER:
-      if (wp == TIMER_POLL) poll_ipc();
+      if (wp == TIMER_POLL) {
+        poll_ipc();
+        if (recording_) toolbar_.set_elapsed(GetTickCount64() - rec_start_tick_);
+      }
       return 0;
   }
   return DefWindowProcW(h, msg, wp, lp);

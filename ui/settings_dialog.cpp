@@ -1,14 +1,10 @@
 #include "ui/settings_dialog.h"
 #include "ui/resource.h"
 #include "common/settings.h"
-#include "ui/region_selector.h"
 #include <windows.h>
 #include <shellapi.h>
 #include <shlobj.h>
 #include <string>
-
-RECT g_pending_region = {};
-bool g_has_pending_region = false;
 
 static std::wstring widen(const std::string& s) {
   if (s.empty()) return L"";
@@ -45,7 +41,6 @@ static INT_PTR CALLBACK proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp) {
   switch (msg) {
     case WM_INITDIALOG: {
       cfg = (RecordConfig*)lp;
-      g_has_pending_region = false;
       wchar_t mon[16];
       HWND cbm = GetDlgItem(dlg, IDC_MONITOR);
       for (int i = 0; i < 4; ++i) { swprintf_s(mon, L"显示器 %d", i + 1); SendMessageW(cbm, CB_ADDSTRING, 0, (LPARAM)mon); }
@@ -65,21 +60,10 @@ static INT_PTR CALLBACK proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp) {
       CheckDlgButton(dlg, IDC_SYSAUD, cfg->system_audio.enabled ? BST_CHECKED : BST_UNCHECKED);
       CheckDlgButton(dlg, IDC_MIC, cfg->microphone.enabled ? BST_CHECKED : BST_UNCHECKED);
       CheckDlgButton(dlg, IDC_CURSOR, cfg->include_cursor ? BST_CHECKED : BST_UNCHECKED);
-      SetDlgItemTextW(dlg, IDC_REGION_INFO,
-                      cfg->region_enabled ? L"已框选区域" : L"全屏");
       return TRUE;
     }
     case WM_COMMAND:
       switch (LOWORD(wp)) {
-        case IDC_REGION: {
-          RECT r;
-          if (pick_region(GetParent(dlg), r)) {
-            g_pending_region = r;
-            g_has_pending_region = true;
-            SetDlgItemTextW(dlg, IDC_REGION_INFO, L"已框选区域");
-          }
-          return TRUE;
-        }
         case IDC_BROWSE: {
           wchar_t path[MAX_PATH] = {};
           GetDlgItemTextW(dlg, IDC_OUTDIR, path, MAX_PATH);
@@ -112,13 +96,6 @@ static INT_PTR CALLBACK proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp) {
           int mv = GetDlgItemInt(dlg, IDC_MIC_VOL, nullptr, FALSE);
           if (mv < 0) mv = 0; if (mv > 100) mv = 100;
           cfg->microphone.volume = mv / 100.0f;
-          if (g_has_pending_region) {
-            cfg->region.x = g_pending_region.left;
-            cfg->region.y = g_pending_region.top;
-            cfg->region.w = g_pending_region.right - g_pending_region.left;
-            cfg->region.h = g_pending_region.bottom - g_pending_region.top;
-            cfg->region_enabled = true;
-          }
           EndDialog(dlg, 1);
           return TRUE;
         }

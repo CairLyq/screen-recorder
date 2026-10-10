@@ -34,6 +34,7 @@ private:
   void* proc_ = nullptr;      // recorder 进程 HANDLE
   RecordConfig cfg_;
   std::atomic<bool> recording_{false};
+  int64_t rec_start_tick_ = 0;
   std::string pipe_name_;
   static constexpr UINT WM_TRAY = WM_APP + 1;
   static constexpr UINT_PTR TIMER_POLL = 1;
