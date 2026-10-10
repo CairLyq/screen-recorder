@@ -47,14 +47,14 @@ add_library(ui_widgets STATIC
   ui/region_selector.cpp
   ui/toolbar.cpp
   ui/tray.cpp
-  ui/hotkey.cpp
-  ui/ui.rc)
+  ui/hotkey.cpp)
 target_link_libraries(ui_widgets PUBLIC ui_core user32 gdi32 shell32 comctl32)
 
 add_executable(recorder recorder/main.cpp)
 target_link_libraries(recorder PRIVATE recorder_core)
 
-add_executable(ui WIN32 ui/main.cpp ui/app.cpp)
+# ui.rc 必须挂到 exe 目标上：放进静态库会被链接器丢弃（无符号引用）
+add_executable(ui WIN32 ui/main.cpp ui/app.cpp ui/ui.rc)
 target_link_libraries(ui PRIVATE ui_widgets ui_core common)
 add_custom_command(TARGET ui POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E copy_if_different
