@@ -1,5 +1,6 @@
 #include "common/settings.h"
 #include <nlohmann/json.hpp>
+#include <algorithm>
 #include <cstdlib>
 #include <fstream>
 
@@ -96,4 +97,57 @@ std::string default_settings_path() {
   const char* appdata = std::getenv("APPDATA");
   std::string dir = appdata ? appdata : ".";
   return dir + "/ScreenRecorder/settings.json";
+}
+
+std::string config_to_json(const RecordConfig& c) {
+  json j;
+  j["output_dir"] = c.output_dir;
+  j["monitor_index"] = c.monitor_index;
+  j["region"] = {{"x", c.region.x}, {"y", c.region.y},
+                 {"w", c.region.w}, {"h", c.region.h}};
+  j["region_enabled"] = c.region_enabled;
+  j["fps"] = c.fps;
+  j["quality"] = quality_to_str(c.quality);
+  j["video_encoder"] = enc_to_str(c.encoder);
+  j["system_audio"] = {{"enabled", c.system_audio.enabled},
+                       {"volume", c.system_audio.volume},
+                       {"device", c.system_audio.device}};
+  j["microphone"] = {{"enabled", c.microphone.enabled},
+                     {"volume", c.microphone.volume},
+                     {"device", c.microphone.device}};
+  j["include_cursor"] = c.include_cursor;
+  return j.dump();
+}
+
+RecordConfig config_from_json(const std::string& body) {
+  try {
+    json j = json::parse(body);
+    RecordConfig c;
+    c.output_dir = j.value("output_dir", c.output_dir);
+    c.monitor_index = j.value("monitor_index", c.monitor_index);
+    c.fps = std::clamp(j.value("fps", c.fps), 1, 240);
+    c.quality = quality_from_str(j.value("quality", std::string("medium")));
+    c.encoder = enc_from_str(j.value("video_encoder", std::string("auto")));
+    c.region_enabled = j.value("region_enabled", c.region_enabled);
+    c.include_cursor = j.value("include_cursor", c.include_cursor);
+    if (j.contains("region")) {
+      c.region.x = j["region"].value("x", c.region.x);
+      c.region.y = j["region"].value("y", c.region.y);
+      c.region.w = j["region"].value("w", c.region.w);
+      c.region.h = j["region"].value("h", c.region.h);
+    }
+    if (j.contains("system_audio")) {
+      c.system_audio.enabled = j["system_audio"].value("enabled", c.system_audio.enabled);
+      c.system_audio.volume = j["system_audio"].value("volume", c.system_audio.volume);
+      c.system_audio.device = j["system_audio"].value("device", c.system_audio.device);
+    }
+    if (j.contains("microphone")) {
+      c.microphone.enabled = j["microphone"].value("enabled", c.microphone.enabled);
+      c.microphone.volume = j["microphone"].value("volume", c.microphone.volume);
+      c.microphone.device = j["microphone"].value("device", c.microphone.device);
+    }
+    return c;
+  } catch (...) {
+    return RecordConfig{};
+  }
 }

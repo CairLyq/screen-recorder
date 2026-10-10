@@ -5,7 +5,6 @@
 #include "recorder/ipc_server.h"
 #include "recorder/muxer.h"
 #include <nlohmann/json.hpp>
-#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <string>
@@ -13,33 +12,6 @@
 #include <windows.h>
 
 using nlohmann::json;
-
-static RecordConfig config_from_json(const std::string& body) {
-  RecordConfig c;
-  try {
-    json j = json::parse(body);
-    c.output_dir = j.value("output_dir", std::string("."));
-    c.monitor_index = j.value("monitor_index", 0);
-    c.fps = std::clamp(j.value("fps", 30), 1, 240);
-    c.include_cursor = j.value("include_cursor", true);
-    if (j.contains("region")) {
-      c.region.x = j["region"].value("x", 0);
-      c.region.y = j["region"].value("y", 0);
-      c.region.w = j["region"].value("w", 0);
-      c.region.h = j["region"].value("h", 0);
-      c.region_enabled = !c.region.empty();
-    }
-    if (j.contains("system_audio"))
-      c.system_audio.enabled = j["system_audio"].value("enabled", false),
-      c.system_audio.volume = j["system_audio"].value("volume", 1.0f);
-    if (j.contains("microphone"))
-      c.microphone.enabled = j["microphone"].value("enabled", false),
-      c.microphone.volume = j["microphone"].value("volume", 1.0f);
-  } catch (const std::exception& e) {
-    LOGE("bad config json: %s", e.what());
-  }
-  return c;
-}
 
 static int run_headless(int seconds, const std::string& out_dir) {
   RecordConfig cfg;

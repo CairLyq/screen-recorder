@@ -47,7 +47,7 @@ add_custom_command(TARGET recorder POST_BUILD
 enable_testing()
 set(TESTS
   test_ipc_message test_settings test_audio_mixer
-  test_cursor_compositor test_encoder_mux test_ipc_server)
+  test_cursor_compositor test_encoder_mux test_ipc_server test_config_json)
 foreach(t ${TESTS})
   add_executable(${t} tests/${t}.cpp)
   target_link_libraries(${t} PRIVATE recorder_core)
