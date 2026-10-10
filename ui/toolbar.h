@@ -11,11 +11,15 @@ public:
   void show();
   void set_recording(bool recording);  // 切换按钮图标：false=▶(开始) true=■(停止)
   void set_elapsed(int64_t ms);        // 更新计时（MM:SS）
+  void set_saving(bool saving);        // 停止后保存中：左上角显示"保存中…"
 
 private:
   HWND hwnd_ = nullptr;
   std::function<void()> on_toggle_;
   bool recording_ = false;
+  bool saving_ = false;
+  bool hover_ = false;
+  bool pressed_ = false;
   int64_t elapsed_ = 0;
   HFONT font_ = nullptr;  // 缓存，WM_DESTROY 释放
   static LRESULT CALLBACK wnd_proc(HWND, UINT, WPARAM, LPARAM);

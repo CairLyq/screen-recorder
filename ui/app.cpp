@@ -86,6 +86,7 @@ bool App::start_recording() {
   client_.send_message({MsgType::Start, config_to_json(cfg_)});
   recording_ = true;
   toolbar_.set_recording(true);
+  toolbar_.set_saving(false);
   SetTimer(hwnd_, TIMER_POLL, 20, nullptr);
   return true;
 }
@@ -94,6 +95,7 @@ void App::stop_recording() {
   LOGI("ui stop_recording, recording=%d", (int)(bool)recording_);
   if (!recording_) return;
   client_.send_message({MsgType::Stop, ""});
+  toolbar_.set_saving(true);
   LOGI("ui -> Stop sent");
   // 等 poll_ipc 收到 Done 后收尾
 }
@@ -130,6 +132,7 @@ void App::end_session() {
   recording_ = false;
   toolbar_.set_recording(false);
   toolbar_.set_elapsed(0);
+  toolbar_.set_saving(false);
   frame_.hide();  // 录制结束隐藏区域框
 }
 
