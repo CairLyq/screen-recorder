@@ -18,7 +18,10 @@ static int64_t bitrate_for(Quality q, int w, int h, int fps) {
 }
 
 bool VideoEncoder::open(int width, int height, int fps, Quality q,
-                        EncoderKind kind, std::string& chosen_name) {
+                        EncoderKind kind, std::string& chosen_name,
+                        OutputFormat format) {
+  if (format == OutputFormat::Webp)
+    return try_open_webp(width, height, fps, q, chosen_name);
   const char* chain[4];
   switch (kind) {
     case EncoderKind::Nvenc: chain[0] = "h264_nvenc";
@@ -66,6 +69,32 @@ bool VideoEncoder::try_open(const char* name, int w, int h, int fps, Quality q) 
   ctx_ = c;
   pkt_ = av_packet_alloc();
   LOGI("video encoder %s opened", name);
+  return true;
+}
+
+bool VideoEncoder::try_open_webp(int w, int h, int fps, Quality q,
+                                 std::string& name) {
+  const AVCodec* codec = avcodec_find_encoder_by_name("libwebp_anim");
+  if (!codec) return false;
+  AVCodecContext* c = avcodec_alloc_context3(codec);
+  if (!c) return false;
+  c->width = w;
+  c->height = h;
+  c->time_base = {1, fps};
+  c->framerate = {fps, 1};
+  c->pix_fmt = AV_PIX_FMT_YUV420P;  // libwebp_anim 要平面 YUV
+  c->gop_size = fps * 2;
+  int quality = q == Quality::Low ? 50 : (q == Quality::High ? 90 : 75);
+  av_opt_set_int(c, "quality", quality, 0);  // libwebp 用 quality(0-100)，非码率
+  if (avcodec_open2(c, codec, nullptr) < 0) {
+    avcodec_free_context(&c);
+    LOGI("video encoder libwebp_anim open failed");
+    return false;
+  }
+  ctx_ = c;
+  pkt_ = av_packet_alloc();
+  name = "libwebp_anim";
+  LOGI("video encoder libwebp_anim opened");
   return true;
 }
 

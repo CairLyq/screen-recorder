@@ -41,9 +41,12 @@ bool Pipeline::start(const RecordConfig& cfg, std::string& out_path) {
   }
 
   // 文件路径
+  const bool webp = (cfg_.format == OutputFormat::Webp);
   SYSTEMTIME st; GetLocalTime(&st);
   char name[64];
-  snprintf(name, sizeof(name), "ScreenRec_%04d%02d%02d_%02d%02d%02d.mp4",
+  snprintf(name, sizeof(name),
+           webp ? "ScreenRec_%04d%02d%02d_%02d%02d%02d.webp"
+                : "ScreenRec_%04d%02d%02d_%02d%02d%02d.mp4",
            st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
   out_path_ = cfg_.output_dir + "/" + name;
   out_path = out_path_;
@@ -52,31 +55,40 @@ bool Pipeline::start(const RecordConfig& cfg, std::string& out_path) {
   VideoEncoder* v = new VideoEncoder();
   std::string vn;
   if (!v->open(cap->output_rect().w, cap->output_rect().h, cfg_.fps,
-               cfg_.quality, cfg_.encoder, vn)) {
+               cfg_.quality, cfg_.encoder, vn, cfg_.format)) {
     LOGE("video encoder open failed");
     v->close(); delete v; cap->close(); delete cap; return false;
   }
   venc_ = v;
   LOGI("chosen video encoder: %s", vn.c_str());
 
-  AudioEncoder* a = new AudioEncoder();
-  std::string an;
-  if (!a->open(48000, 2, an)) { a->close(); delete a; v->close(); delete v; cap->close(); delete cap; return false; }
-  aenc_ = a;
+  AudioEncoder* a = nullptr;
+  if (!webp) {
+    a = new AudioEncoder();
+    std::string an;
+    if (!a->open(48000, 2, an)) { a->close(); delete a; v->close(); delete v; cap->close(); delete cap; return false; }
+    aenc_ = a;
+  } else {
+    aenc_ = nullptr;
+  }
 
   Muxer* mux = new Muxer();
-  if (!mux->open(out_path_, v->ctx(), cfg_.system_audio.enabled || cfg_.microphone.enabled ? a->ctx() : nullptr)) {
+  if (!mux->open(out_path_, v->ctx(),
+                 (!webp && (cfg_.system_audio.enabled || cfg_.microphone.enabled)) ? a->ctx() : nullptr)) {
     LOGE("mux open failed");
-    mux->close(); delete mux; a->close(); delete a; v->close(); delete v; cap->close(); delete cap; return false;
+    mux->close(); delete mux;
+    if (a) { a->close(); delete a; }
+    v->close(); delete v; cap->close(); delete cap; return false;
   }
 
   start_qpc_ = now_qpc();
   running_ = true;
-  vt_ = std::thread([this, cap] {
+  vt_ = std::thread([this, cap, webp] {
     VideoEncoder* ve = (VideoEncoder*)venc_;
     AVFrame* f = ve->alloc_frame();
     int w = f->width, h = f->height;
-    SwsContext* sws = sws_getContext(w, h, AV_PIX_FMT_BGRA, w, h, AV_PIX_FMT_NV12,
+    SwsContext* sws = sws_getContext(w, h, AV_PIX_FMT_BGRA, w, h,
+                                     webp ? AV_PIX_FMT_YUV420P : AV_PIX_FMT_NV12,
                                      SWS_BILINEAR, nullptr, nullptr, nullptr);
     if (!sws) { LOGE("sws_getContext failed"); av_frame_free(&f); cap->close(); delete cap; return; }
     CapturedFrame cf;
@@ -119,11 +131,23 @@ bool Pipeline::start(const RecordConfig& cfg, std::string& out_path) {
       {
         std::lock_guard<std::mutex> g(vmtx_);
         VItem it;
-        size_t sz = (size_t)f->linesize[0] * h + (size_t)f->linesize[1] * (h / 2);
+        // 按平面打包：NV12 2 平面 / YUV420P 3 平面
+        size_t sz = 0;
+        for (int p = 0; f->data[p] && p < 3; ++p) {
+          int rows = (p == 0) ? h : h / 2;
+          sz += (size_t)f->linesize[p] * rows;
+        }
         it.nv12.resize(sz);
         size_t off = 0;
-        for (int r = 0; r < h; ++r) { std::memcpy(it.nv12.data() + off, f->data[0] + r * f->linesize[0], f->linesize[0]); off += f->linesize[0]; }
-        for (int r = 0; r < h / 2; ++r) { std::memcpy(it.nv12.data() + off, f->data[1] + r * f->linesize[1], f->linesize[1]); off += f->linesize[1]; }
+        for (int p = 0; f->data[p] && p < 3; ++p) {
+          int rows = (p == 0) ? h : h / 2;
+          for (int r = 0; r < rows; ++r) {
+            std::memcpy(it.nv12.data() + off,
+                        f->data[p] + (size_t)r * f->linesize[p],
+                        f->linesize[p]);
+            off += f->linesize[p];
+          }
+        }
         it.pts = (int)f->pts;
         if (vq_.size() < (size_t)cfg_.fps * 2) vq_.push_back(std::move(it));
         else dropped_++;
@@ -158,13 +182,20 @@ bool Pipeline::start(const RecordConfig& cfg, std::string& out_path) {
       // 编码/mux 放锁外，避免拖慢抓屏线程
       if (have_v) {
         av_frame_make_writable(f);
+        // 按平面解包：NV12 2 平面 / YUV420P 3 平面
         size_t off = 0;
-        for (int r = 0; r < h; ++r) { std::memcpy(f->data[0] + r * f->linesize[0], it.nv12.data() + off, f->linesize[0]); off += f->linesize[0]; }
-        for (int r = 0; r < h / 2; ++r) { std::memcpy(f->data[1] + r * f->linesize[1], it.nv12.data() + off, f->linesize[1]); off += f->linesize[1]; }
+        for (int p = 0; f->data[p] && p < 3; ++p) {
+          int rows = (p == 0) ? h : h / 2;
+          for (int r = 0; r < rows; ++r) {
+            std::memcpy(f->data[p] + (size_t)r * f->linesize[p],
+                        it.nv12.data() + off, f->linesize[p]);
+            off += f->linesize[p];
+          }
+        }
         f->pts = it.pts;
         ve->encode(f, [&](AVPacket* p) { mux->write(p, ve->ctx()); });
       }
-      {
+      if (ae) {
         std::lock_guard<std::mutex> g(amtx_);
         if (!aq_.empty()) { abuf.swap(aq_); have_a = true; }
       }
@@ -179,16 +210,16 @@ bool Pipeline::start(const RecordConfig& cfg, std::string& out_path) {
       }
     }
     ve->flush([&](AVPacket* p) { mux->write(p, ve->ctx()); });
-    ae->flush([&](AVPacket* p) { mux->write(p, ae->ctx()); });
+    if (ae) ae->flush([&](AVPacket* p) { mux->write(p, ae->ctx()); });
     mux->close();
     av_frame_free(&f);
     ve->close();
-    ae->close();
-    delete mux; delete ae; delete ve;
+    if (ae) { ae->close(); delete ae; }
+    delete mux; delete ve;
   });
 
-  // 音频线程：两路采集，混音后入队
-  at_ = std::thread([this] {
+  // 音频线程：两路采集，混音后入队（WebP 无音频，不启动）
+  if (!webp) at_ = std::thread([this] {
     WasapiCapture sys, mic;
     Resampler* rsys = nullptr;
     Resampler* rmic = nullptr;
