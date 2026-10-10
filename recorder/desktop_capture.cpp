@@ -14,20 +14,31 @@ bool DesktopCapture::init(int monitor_index, const Rect& region) {
     LOGE("CreateDXGIFactory1 failed");
     return false;
   }
-  // 枚举显示器
+  // 选显示器：给了区域就按「区域左上角所在的显示器」选（region 为屏幕/桌面坐标），
+  // 否则按 monitor_index。这样多显示器下区域在屏 2 也能正确抓屏。
+  const bool by_region = !region.empty();
   UINT mon = 0;
   ComPtr<IDXGIAdapter1> adapter;
   ComPtr<IDXGIOutput> output;
   bool found = false;
   for (UINT a = 0; factory->EnumAdapters1(a, &adapter) != DXGI_ERROR_NOT_FOUND; ++a) {
     for (UINT o = 0; adapter->EnumOutputs(o, &output) != DXGI_ERROR_NOT_FOUND; ++o) {
-      if ((int)mon == monitor_index) { found = true; break; }
+      DXGI_OUTPUT_DESC d;
+      output->GetDesc(&d);
+      bool match = by_region
+          ? (region.x >= d.DesktopCoordinates.left &&
+             region.x < d.DesktopCoordinates.right &&
+             region.y >= d.DesktopCoordinates.top &&
+             region.y < d.DesktopCoordinates.bottom)
+          : ((int)mon == monitor_index);
+      if (match) { found = true; break; }
       mon++;
       output.Reset();
     }
     if (found) break;
   }
-  if (!found) { LOGE("monitor %d not found", monitor_index); return false; }
+  if (!found) { LOGE("no monitor matches (index=%d region=(%d,%d))", monitor_index,
+                     region.x, region.y); return false; }
 
   DXGI_OUTPUT_DESC desc;
   output->GetDesc(&desc);
@@ -57,7 +68,11 @@ bool DesktopCapture::init(int monitor_index, const Rect& region) {
     return false;
   }
 
-  crop_ = region.empty() ? Rect{0, 0, full_w, full_h} : region;
+  // region 是屏幕坐标 → 转成该显示器本地坐标再裁剪。
+  if (region.empty())
+    crop_ = Rect{0, 0, full_w, full_h};
+  else
+    crop_ = Rect{region.x - mon_left_, region.y - mon_top_, region.w, region.h};
   if (crop_.x < 0) crop_.x = 0;
   if (crop_.y < 0) crop_.y = 0;
   if (crop_.x + crop_.w > full_w) crop_.w = full_w - crop_.x;
