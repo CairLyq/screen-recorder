@@ -163,6 +163,7 @@ void App::open_output_folder() {
   if (n <= 0) return;
   std::wstring w(n, L'\0');
   MultiByteToWideChar(CP_UTF8, 0, out_path_.c_str(), (int)out_path_.size(), &w[0], n);
+  for (auto& c : w) if (c == L'/') c = L'\\';   // 统一分隔符，否则 explorer /select 解析失败
   std::wstring args = L"/select,\"" + w + L"\"";
   ShellExecuteW(nullptr, L"open", L"explorer.exe", args.c_str(), nullptr, SW_SHOWNORMAL);
 }
