@@ -1,9 +1,9 @@
 #include "ui/region_frame.h"
+#include "ui/region_border.h"
 
 namespace {
 const COLORREF kKey = RGB(1, 2, 3);  // 色键：该颜色处透明
 const int BORDER = 4;                // px，窗口在区域外扩的边距
-const int CORNER = 22;               // 角臂长度 px
 }  // namespace
 
 LRESULT CALLBACK RegionFrame::wnd_proc(HWND h, UINT m, WPARAM w, LPARAM l) {
@@ -33,29 +33,8 @@ LRESULT RegionFrame::handle(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
       // 使 3px 线宽也完全落在裁剪区之外，绝不进视频。
       RECT r = {BORDER - 2, BORDER - 2, full.right - BORDER + 2,
                 full.bottom - BORDER + 2};
-      if (r.right > r.left && r.bottom > r.top) {
-        HGDIOBJ oldBrush = SelectObject(dc, GetStockObject(NULL_BRUSH));
-        // 白色虚线边界（GDI 虚线要求 1px 宽）。
-        HPEN dash = CreatePen(PS_DASH, 1, RGB(255, 255, 255));
-        HGDIOBJ oldPen = SelectObject(dc, dash);
-        Rectangle(dc, r.left, r.top, r.right, r.bottom);
-        // 加粗实心角（3px，沿同一边界矩形，每臂 ~22px）。
-        HPEN solid = CreatePen(PS_SOLID, 3, RGB(255, 255, 255));
-        SelectObject(dc, solid);
-        int L = r.left, T = r.top, R = r.right, B = r.bottom;
-        MoveToEx(dc, L, T, nullptr); LineTo(dc, L + CORNER, T);  // 左上
-        MoveToEx(dc, L, T, nullptr); LineTo(dc, L, T + CORNER);
-        MoveToEx(dc, R, T, nullptr); LineTo(dc, R - CORNER, T);  // 右上
-        MoveToEx(dc, R, T, nullptr); LineTo(dc, R, T + CORNER);
-        MoveToEx(dc, L, B, nullptr); LineTo(dc, L + CORNER, B);  // 左下
-        MoveToEx(dc, L, B, nullptr); LineTo(dc, L, B - CORNER);
-        MoveToEx(dc, R, B, nullptr); LineTo(dc, R - CORNER, B);  // 右下
-        MoveToEx(dc, R, B, nullptr); LineTo(dc, R, B - CORNER);
-        SelectObject(dc, oldPen);
-        SelectObject(dc, oldBrush);
-        DeleteObject(dash);
-        DeleteObject(solid);
-      }
+      if (r.right > r.left && r.bottom > r.top)
+        draw_region_border(dc, r.left, r.top, r.right, r.bottom);
       EndPaint(h, &ps);
       return 0;
     }
@@ -104,4 +83,11 @@ void RegionFrame::show() {
 
 void RegionFrame::hide() {
   if (hwnd_) ShowWindow(hwnd_, SW_HIDE);
+}
+
+void RegionFrame::destroy() {
+  if (hwnd_) {
+    DestroyWindow(hwnd_);
+    hwnd_ = nullptr;
+  }
 }

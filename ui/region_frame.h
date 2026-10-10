@@ -10,6 +10,7 @@ public:
   void set_region(int x, int y, int w, int h);
   void show();
   void hide();
+  void destroy();
 
 private:
   HWND hwnd_ = nullptr;
