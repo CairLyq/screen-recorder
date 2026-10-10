@@ -40,9 +40,10 @@ bool App::init(HINSTANCE inst) {
   };
   wc.hInstance = inst;
   wc.lpszClassName = "ScreenRecUiClass";
-  RegisterClassA(&wc);
+  if (!RegisterClassA(&wc)) LOGE("RegisterClassA failed: %lu", GetLastError());
   hwnd_ = CreateWindowExA(0, wc.lpszClassName, "ScreenRecorder", 0, 0, 0, 0, 0,
                           nullptr, nullptr, inst, this);
+  if (hwnd_ == nullptr) LOGE("CreateWindowExA failed: %lu", GetLastError());
 
   toolbar_.create(inst, [this] { stop_recording(); });
   tray_.add(hwnd_, WM_TRAY);
@@ -58,14 +59,14 @@ bool App::start_recording() {
   if (reader_t_.joinable()) reader_t_.join();
   pipe_name_ = "\\\\.\\pipe\\screenrec-default";
   proc_ = spawn_recorder(exe_dir() + "\\recorder.exe", pipe_name_);
-  if (!proc_) { MessageBoxA(hwnd_, "启动录制进程失败", "错误", MB_OK | MB_ICONERROR); return false; }
+  if (!proc_) { MessageBoxW(hwnd_, L"启动录制进程失败", L"错误", MB_OK | MB_ICONERROR); return false; }
   if (!client_.connect(pipe_name_, 60, 50)) {
-    MessageBoxA(hwnd_, "连接录制进程失败", "错误", MB_OK | MB_ICONERROR);
+    MessageBoxW(hwnd_, L"连接录制进程失败", L"错误", MB_OK | MB_ICONERROR);
     kill_recorder(proc_); proc_ = nullptr;
     return false;
   }
   Message ready;
-  if (!client_.read_message(ready)) { MessageBoxA(hwnd_, "recorder 未响应", "错误", MB_OK | MB_ICONERROR); kill_recorder(proc_); proc_ = nullptr; client_.close(); return false; }
+  if (!client_.read_message(ready)) { MessageBoxW(hwnd_, L"recorder 未响应", L"错误", MB_OK | MB_ICONERROR); kill_recorder(proc_); proc_ = nullptr; client_.close(); return false; }
   client_.send_message({MsgType::Start, config_to_json(cfg_)});
 
   recording_ = true;
@@ -113,7 +114,7 @@ void App::reader_loop() {
 void App::toggle() { if (recording_) stop_recording(); else start_recording(); }
 
 void App::open_settings() {
-  if (recording_) { MessageBoxA(hwnd_, "录制中不能改设置", "提示", MB_OK); return; }
+  if (recording_) { MessageBoxW(hwnd_, L"录制中不能改设置", L"提示", MB_OK); return; }
   if (show_settings_dialog(hwnd_, cfg_)) {
     save_settings(default_settings_path(), cfg_);
   }
@@ -152,7 +153,7 @@ void App::on_message(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
       break;
     }
     case WM_APP + 4:  // reader 上报 Error
-      MessageBoxA(hwnd_, "录制出错", "错误", MB_OK | MB_ICONERROR);
+      MessageBoxW(hwnd_, L"录制出错", L"错误", MB_OK | MB_ICONERROR);
       break;
   }
 }

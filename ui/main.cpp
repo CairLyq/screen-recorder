@@ -1,6 +1,8 @@
 #include "ui/app.h"
+#include "common/log.h"
 #include <windows.h>
 #include <commctrl.h>
+#include <cstdio>
 
 int WINAPI WinMain(HINSTANCE inst, HINSTANCE, LPSTR, int) {
   SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
@@ -10,7 +12,10 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE, LPSTR, int) {
 
   App app;
   if (!app.init(inst)) {
-    MessageBoxA(nullptr, "初始化失败", "错误", MB_OK | MB_ICONERROR);
+    LOGE("ui init failed");
+    wchar_t msg[256];
+    swprintf_s(msg, L"初始化失败，详见 %%TEMP%%\\screenrec.log");
+    MessageBoxW(nullptr, msg, L"错误", MB_OK | MB_ICONERROR);
     return 1;
   }
   MSG msg;

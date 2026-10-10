@@ -1,5 +1,6 @@
 #include "ui/tray.h"
 #include <shellapi.h>
+#include <cwchar>
 
 #define WM_TRAY (WM_APP + 1)
 #define IDM_TOGGLE 9001
@@ -9,23 +10,23 @@
 bool Tray::add(HWND owner, UINT callback_msg) {
   owner_ = owner;
   msg_ = callback_msg;
-  NOTIFYICONDATAA nid = {};
+  NOTIFYICONDATAW nid = {};
   nid.cbSize = sizeof(nid);
   nid.hWnd = owner;
   nid.uID = 1;
   nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
   nid.uCallbackMessage = callback_msg;
   nid.hIcon = LoadIcon(nullptr, IDI_APPLICATION);
-  strcpy_s(nid.szTip, "屏幕录制");
-  return Shell_NotifyIconA(NIM_ADD, &nid) != 0;
+  wcscpy_s(nid.szTip, L"屏幕录制");
+  return Shell_NotifyIconW(NIM_ADD, &nid) != 0;
 }
 
 void Tray::remove() {
-  NOTIFYICONDATAA nid = {};
+  NOTIFYICONDATAW nid = {};
   nid.cbSize = sizeof(nid);
   nid.hWnd = owner_;
   nid.uID = 1;
-  Shell_NotifyIconA(NIM_DELETE, &nid);
+  Shell_NotifyIconW(NIM_DELETE, &nid);
 }
 
 void Tray::set_callbacks(std::function<void()> t, std::function<void()> s,
@@ -37,10 +38,10 @@ void Tray::set_callbacks(std::function<void()> t, std::function<void()> s,
 
 void Tray::show_menu(HWND owner) {
   HMENU menu = CreatePopupMenu();
-  AppendMenuA(menu, MF_STRING, IDM_TOGGLE, "开始/停止录制");
-  AppendMenuA(menu, MF_STRING, IDM_SETTINGS, "设置...");
-  AppendMenuA(menu, MF_SEPARATOR, 0, nullptr);
-  AppendMenuA(menu, MF_STRING, IDM_QUIT, "退出");
+  AppendMenuW(menu, MF_STRING, IDM_TOGGLE, L"开始/停止录制");
+  AppendMenuW(menu, MF_STRING, IDM_SETTINGS, L"设置...");
+  AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+  AppendMenuW(menu, MF_STRING, IDM_QUIT, L"退出");
   POINT p;
   GetCursorPos(&p);
   SetForegroundWindow(owner);

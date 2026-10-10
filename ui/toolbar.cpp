@@ -6,11 +6,11 @@
 #define IDC_LABEL 2002
 
 LRESULT CALLBACK Toolbar::wnd_proc(HWND h, UINT m, WPARAM w, LPARAM l) {
-  Toolbar* self = (Toolbar*)GetWindowLongPtrA(h, GWLP_USERDATA);
+  Toolbar* self = (Toolbar*)GetWindowLongPtrW(h, GWLP_USERDATA);
   if (m == WM_NCCREATE) {
-    CREATESTRUCTA* cs = (CREATESTRUCTA*)l;
+    CREATESTRUCTW* cs = (CREATESTRUCTW*)l;
     self = (Toolbar*)cs->lpCreateParams;
-    SetWindowLongPtrA(h, GWLP_USERDATA, (LONG_PTR)self);
+    SetWindowLongPtrW(h, GWLP_USERDATA, (LONG_PTR)self);
     self->hwnd_ = h;
   }
   if (self) return self->handle(h, m, w, l);
@@ -20,11 +20,11 @@ LRESULT CALLBACK Toolbar::wnd_proc(HWND h, UINT m, WPARAM w, LPARAM l) {
 LRESULT Toolbar::handle(HWND h, UINT m, WPARAM w, LPARAM l) {
   switch (m) {
     case WM_CREATE: {
-      CreateWindowExA(0, "STATIC", "REC", WS_CHILD | WS_VISIBLE | SS_CENTER,
+      CreateWindowExW(0, L"STATIC", L"REC", WS_CHILD | WS_VISIBLE | SS_CENTER,
                       6, 12, 34, 16, h, nullptr, nullptr, nullptr);
-      CreateWindowExA(0, "STATIC", "00:00  30 fps", WS_CHILD | WS_VISIBLE,
+      CreateWindowExW(0, L"STATIC", L"00:00  30 fps", WS_CHILD | WS_VISIBLE,
                       44, 12, 150, 16, h, (HMENU)IDC_LABEL, nullptr, nullptr);
-      CreateWindowExA(0, "BUTTON", "停止", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+      CreateWindowExW(0, L"BUTTON", L"停止", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
                       198, 8, 56, 24, h, (HMENU)IDC_STOP, nullptr, nullptr);
       return 0;
     }
@@ -48,16 +48,16 @@ LRESULT Toolbar::handle(HWND h, UINT m, WPARAM w, LPARAM l) {
 
 HWND Toolbar::create(HINSTANCE inst, std::function<void()> on_stop) {
   on_stop_ = std::move(on_stop);
-  WNDCLASSA wc = {};
+  WNDCLASSW wc = {};
   wc.lpfnWndProc = &Toolbar::wnd_proc;
   wc.hInstance = inst;
-  wc.lpszClassName = "ScreenRecToolbarClass";
+  wc.lpszClassName = L"ScreenRecToolbarClass";
   wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
   wc.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
-  RegisterClassA(&wc);
+  RegisterClassW(&wc);
   int sw = GetSystemMetrics(SM_CXSCREEN);
   int sh = GetSystemMetrics(SM_CYSCREEN);
-  hwnd_ = CreateWindowExA(WS_EX_TOPMOST | WS_EX_TOOLWINDOW, wc.lpszClassName, "",
+  hwnd_ = CreateWindowExW(WS_EX_TOPMOST | WS_EX_TOOLWINDOW, wc.lpszClassName, L"",
                           WS_POPUP, sw - 280, sh - 60, 260, 40, nullptr, nullptr,
                           inst, this);
   return hwnd_;
@@ -71,7 +71,7 @@ void Toolbar::hide() { if (hwnd_) ShowWindow(hwnd_, SW_HIDE); }
 void Toolbar::set_status(int64_t elapsed_ms, double fps) {
   if (!hwnd_) return;
   int sec = (int)(elapsed_ms / 1000);
-  char buf[64];
-  snprintf(buf, sizeof(buf), "%02d:%02d  %.0f fps", sec / 60, sec % 60, fps);
-  SetWindowTextA(GetDlgItem(hwnd_, IDC_LABEL), buf);
+  wchar_t buf[64];
+  swprintf_s(buf, L"%02d:%02d  %.0f fps", sec / 60, sec % 60, fps);
+  SetWindowTextW(GetDlgItem(hwnd_, IDC_LABEL), buf);
 }

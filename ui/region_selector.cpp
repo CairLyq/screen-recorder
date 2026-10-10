@@ -64,12 +64,12 @@ LRESULT CALLBACK proc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
 bool pick_region(HWND owner, RECT& out) {
   (void)owner;
   HINSTANCE inst = GetModuleHandleA(nullptr);
-  WNDCLASSA wc = {};
+  WNDCLASSW wc = {};
   wc.lpfnWndProc = proc;
   wc.hInstance = inst;
-  wc.lpszClassName = "ScreenRecRegionClass";
+  wc.lpszClassName = L"ScreenRecRegionClass";
   wc.hCursor = LoadCursor(nullptr, IDC_CROSS);
-  RegisterClassA(&wc);
+  RegisterClassW(&wc);
 
   int x = GetSystemMetrics(SM_XVIRTUALSCREEN);
   int y = GetSystemMetrics(SM_YVIRTUALSCREEN);
@@ -77,8 +77,8 @@ bool pick_region(HWND owner, RECT& out) {
   int h = GetSystemMetrics(SM_CYVIRTUALSCREEN);
   // WS_EX_LAYERED must be set at creation, otherwise the later
   // SetLayeredWindowAttributes call fails and the overlay stays opaque.
-  HWND hwnd = CreateWindowExA(WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_LAYERED,
-                              wc.lpszClassName, "", WS_POPUP, x, y, w, h, nullptr,
+  HWND hwnd = CreateWindowExW(WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_LAYERED,
+                              wc.lpszClassName, L"", WS_POPUP, x, y, w, h, nullptr,
                               nullptr, inst, nullptr);
   if (!hwnd) return false;
   SetLayeredWindowAttributes(hwnd, 0, 90, LWA_ALPHA);
