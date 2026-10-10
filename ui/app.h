@@ -24,6 +24,7 @@ private:
   void stop_recording();
   void poll_ipc();        // WM_TIMER：非阻塞收 State/Stats/Done/Error
   void end_session();     // 收尾：停 timer、杀进程、关管道
+  void open_output_folder();  // 保存完打开输出目录并选中文件
 
   HINSTANCE inst_ = nullptr;
   HWND hwnd_ = nullptr;
@@ -36,6 +37,7 @@ private:
   std::atomic<bool> recording_{false};
   int64_t rec_start_tick_ = 0;
   std::string pipe_name_;
+  std::string out_path_;      // 本次录制输出文件（来自 State 消息）
   static constexpr UINT WM_TRAY = WM_APP + 1;
   static constexpr UINT_PTR TIMER_POLL = 1;
 };

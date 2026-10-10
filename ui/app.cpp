@@ -6,8 +6,10 @@
 #include "ui/settings_dialog.h"
 #include "ui/hotkey.h"
 #include "ui/resource.h"
+#include <shellapi.h>
 #include <shlobj.h>
 #include <nlohmann/json.hpp>
+#include <string>
 
 using nlohmann::json;
 
@@ -73,6 +75,7 @@ bool App::select_region() {
 
 bool App::start_recording() {
   if (recording_) return false;
+  out_path_.clear();
   // 每次录制都重新框选区域（区域不保存）
   if (!select_region()) {
     MessageBoxW(hwnd_, L"未设置录制区域", L"提示", MB_OK | MB_ICONINFORMATION);
@@ -110,6 +113,10 @@ void App::poll_ipc() {
     if (r == 0) break;
     if (m.type == MsgType::State) {
       LOGI("state: %s", m.payload.c_str());
+      try {
+        json j = json::parse(m.payload);
+        if (j.is_object() && j.contains("path")) out_path_ = j.value("path", std::string());
+      } catch (...) {}
     } else if (m.type == MsgType::Stats) {
       try {
         json j = json::parse(m.payload);
@@ -120,6 +127,7 @@ void App::poll_ipc() {
       end_session();
       return;
     } else if (m.type == MsgType::Done) {
+      open_output_folder();  // 保存完自动打开输出目录
       end_session();
       return;
     }
@@ -147,6 +155,16 @@ void App::open_settings() {
     save_settings(default_settings_path(), cfg_);
     // 区域每次录制时重新框选，设置对话框不碰区域框
   }
+}
+
+void App::open_output_folder() {
+  if (out_path_.empty()) return;
+  int n = MultiByteToWideChar(CP_UTF8, 0, out_path_.c_str(), (int)out_path_.size(), nullptr, 0);
+  if (n <= 0) return;
+  std::wstring w(n, L'\0');
+  MultiByteToWideChar(CP_UTF8, 0, out_path_.c_str(), (int)out_path_.size(), &w[0], n);
+  std::wstring args = L"/select,\"" + w + L"\"";
+  ShellExecuteW(nullptr, L"open", L"explorer.exe", args.c_str(), nullptr, SW_SHOWNORMAL);
 }
 
 void App::quit() {
