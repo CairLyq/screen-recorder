@@ -12,7 +12,10 @@ int main() {
   in.region_enabled = true;
   in.system_audio.enabled = true;
   in.system_audio.volume = 0.25f;
+  in.system_audio.device = "spk";
   in.microphone.enabled = true;
+  in.microphone.volume = 0.7f;
+  in.microphone.device = "mic0";
   in.include_cursor = false;
 
   std::string s = config_to_json(in);
@@ -22,11 +25,15 @@ int main() {
   CHECK(out.fps == 60);
   CHECK(out.quality == Quality::High);
   CHECK(out.encoder == EncoderKind::Qsv);
-  CHECK(out.region.x == 5 && out.region.h == 500);
+  CHECK(out.region.x == 5 && out.region.y == 6);
+  CHECK(out.region.w == 700 && out.region.h == 500);
   CHECK(out.region_enabled);
   CHECK(out.system_audio.enabled);
   CHECK(out.system_audio.volume > 0.24f && out.system_audio.volume < 0.26f);
+  CHECK_STREQ(out.system_audio.device.c_str(), "spk");
   CHECK(out.microphone.enabled);
+  CHECK(out.microphone.volume > 0.69f && out.microphone.volume < 0.71f);
+  CHECK_STREQ(out.microphone.device.c_str(), "mic0");
   CHECK(!out.include_cursor);
 
   // 坏 JSON / fps 越界 → 回落默认且不抛
