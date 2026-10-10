@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 project(ScreenRecorder CXX)
+enable_language(RC)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 if(MSVC)
@@ -40,6 +41,12 @@ add_library(ui_core STATIC
   ui/ipc_client.cpp
   ui/recorder_process.cpp)
 target_link_libraries(ui_core PUBLIC common)
+
+add_library(ui_widgets STATIC
+  ui/settings_dialog.cpp
+  ui/region_selector.cpp
+  ui/ui.rc)
+target_link_libraries(ui_widgets PUBLIC ui_core user32 gdi32 shell32 comctl32)
 
 add_executable(recorder recorder/main.cpp)
 target_link_libraries(recorder PRIVATE recorder_core)

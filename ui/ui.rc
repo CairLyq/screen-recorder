@@ -1,0 +1,34 @@
+#pragma code_page(65001)  // .rc 为 UTF-8，显式声明避免 rc.exe 按 GBK 解析吞引号
+#include <windows.h>
+#include "resource.h"
+
+IDD_SETTINGS DIALOGEX 0, 0, 260, 232
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "屏幕录制设置"
+FONT 9, "MS Shell Dlg", 0, 0, 0x0
+BEGIN
+    LTEXT           "显示器:", -1, 12, 16, 50, 10
+    COMBOBOX        IDC_MONITOR, 70, 14, 170, 80, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "帧率:", -1, 12, 40, 50, 10
+    COMBOBOX        IDC_FPS, 70, 38, 80, 60, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "质量:", -1, 12, 64, 50, 10
+    COMBOBOX        IDC_QUALITY, 70, 62, 80, 60, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "编码器:", -1, 12, 88, 50, 10
+    COMBOBOX        IDC_ENCODER, 70, 86, 80, 60, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "框选区域", IDC_REGION, 160, 86, 80, 14
+    LTEXT           "全屏", IDC_REGION_INFO, 12, 108, 228, 10
+    CHECKBOX        "录制系统声音", IDC_SYSAUD, 12, 124, 90, 10
+    EDITTEXT        IDC_SYSAUD_VOL, 110, 122, 40, 13, ES_AUTOHSCROLL
+    LTEXT           "音量%", -1, 154, 124, 40, 10
+    CHECKBOX        "录制麦克风", IDC_MIC, 12, 142, 90, 10
+    EDITTEXT        IDC_MIC_VOL, 110, 140, 40, 13, ES_AUTOHSCROLL
+    LTEXT           "音量%", -1, 154, 142, 40, 10
+    CHECKBOX        "包含鼠标光标", IDC_CURSOR, 12, 160, 120, 10
+    LTEXT           "输出目录:", -1, 12, 180, 50, 10
+    EDITTEXT        IDC_OUTDIR, 70, 178, 130, 13, ES_AUTOHSCROLL
+    PUSHBUTTON      "浏览...", IDC_BROWSE, 204, 178, 44, 14
+    LTEXT           "开始/停止热键:", -1, 12, 200, 70, 10
+    COMBOBOX        IDC_HOTKEY, 90, 198, 90, 60, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    DEFPUSHBUTTON   "确定", IDOK, 150, 210, 44, 14
+    PUSHBUTTON      "取消", IDCANCEL, 200, 210, 44, 14
+END
