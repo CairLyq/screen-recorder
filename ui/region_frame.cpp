@@ -29,8 +29,10 @@ LRESULT RegionFrame::handle(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
       HBRUSH key = CreateSolidBrush(kKey);
       FillRect(dc, &full, key);
       DeleteObject(key);
-      // 区域轮廓（窗口坐标）：窗口已在区域外扩 BORDER，故边界即区域边。
-      RECT r = {BORDER, BORDER, full.right - BORDER, full.bottom - BORDER};
+      // 区域轮廓（窗口坐标）：窗口已在区域外扩 BORDER；再外移 2px 画线，
+      // 使 3px 线宽也完全落在裁剪区之外，绝不进视频。
+      RECT r = {BORDER - 2, BORDER - 2, full.right - BORDER + 2,
+                full.bottom - BORDER + 2};
       if (r.right > r.left && r.bottom > r.top) {
         HGDIOBJ oldBrush = SelectObject(dc, GetStockObject(NULL_BRUSH));
         // 白色虚线边界（GDI 虚线要求 1px 宽）。
