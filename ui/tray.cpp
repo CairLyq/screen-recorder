@@ -6,6 +6,7 @@
 #define IDM_TOGGLE 9001
 #define IDM_SETTINGS 9002
 #define IDM_QUIT 9003
+#define IDM_REGION 9004
 
 bool Tray::add(HWND owner, UINT callback_msg) {
   owner_ = owner;
@@ -30,9 +31,10 @@ void Tray::remove() {
 }
 
 void Tray::set_callbacks(std::function<void()> t, std::function<void()> s,
-                         std::function<void()> q) {
+                         std::function<void()> r, std::function<void()> q) {
   on_toggle_ = std::move(t);
   on_settings_ = std::move(s);
+  on_region_ = std::move(r);
   on_quit_ = std::move(q);
 }
 
@@ -40,6 +42,7 @@ void Tray::show_menu(HWND owner) {
   HMENU menu = CreatePopupMenu();
   AppendMenuW(menu, MF_STRING, IDM_TOGGLE, L"开始/停止录制");
   AppendMenuW(menu, MF_STRING, IDM_SETTINGS, L"设置...");
+  AppendMenuW(menu, MF_STRING, IDM_REGION, L"框选区域");
   AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
   AppendMenuW(menu, MF_STRING, IDM_QUIT, L"退出");
   POINT p;
@@ -54,6 +57,7 @@ bool Tray::on_command(HWND owner, int cmd) {
   switch (cmd) {
     case IDM_TOGGLE: if (on_toggle_) on_toggle_(); return true;
     case IDM_SETTINGS: if (on_settings_) on_settings_(); return true;
+    case IDM_REGION: if (on_region_) on_region_(); return true;
     case IDM_QUIT: if (on_quit_) on_quit_(); return true;
   }
   return false;

@@ -2,6 +2,7 @@
 #include "common/settings.h"
 #include "common/log.h"
 #include "ui/recorder_process.h"
+#include "ui/region_selector.h"
 #include "ui/settings_dialog.h"
 #include "ui/hotkey.h"
 #include <shlobj.h>
@@ -47,16 +48,36 @@ bool App::init(HINSTANCE inst) {
   if (hwnd_ == nullptr) { LOGE("CreateWindowExW failed: %lu", GetLastError()); return false; }
 
   toolbar_.create(inst, [this] { stop_recording(); });
+  frame_.create(inst);
+  if (cfg_.region_enabled && cfg_.region.w > 0)
+    frame_.set_region(cfg_.region.x, cfg_.region.y, cfg_.region.w, cfg_.region.h);
   tray_.add(hwnd_, WM_TRAY);
   tray_.set_callbacks([this] { toggle(); }, [this] { open_settings(); },
-                      [this] { quit(); });
+                      [this] { select_region(); }, [this] { quit(); });
   register_toggle_hotkey(hwnd_, VK_F9);
   LOGI("ui ready, output -> %s", cfg_.output_dir.c_str());
   return true;
 }
 
+bool App::select_region() {
+  RECT r;
+  if (!pick_region(hwnd_, r)) return false;
+  cfg_.region.x = r.left; cfg_.region.y = r.top;
+  cfg_.region.w = r.right - r.left; cfg_.region.h = r.bottom - r.top;
+  cfg_.region_enabled = true;
+  save_settings(default_settings_path(), cfg_);
+  frame_.set_region(cfg_.region.x, cfg_.region.y, cfg_.region.w, cfg_.region.h);
+  return true;
+}
+
 bool App::start_recording() {
   if (recording_) return false;
+  if (!cfg_.region_enabled || cfg_.region.w <= 0) {
+    if (!select_region()) {
+      MessageBoxW(hwnd_, L"未设置录制区域", L"提示", MB_OK | MB_ICONINFORMATION);
+      return false;
+    }
+  }
   pipe_name_ = "\\\\.\\pipe\\screenrec-default";
   proc_ = spawn_recorder(exe_dir() + "\\recorder.exe", pipe_name_);
   if (!proc_) { MessageBoxW(hwnd_, L"启动录制进程失败", L"错误", MB_OK | MB_ICONERROR); return false; }
@@ -122,12 +143,17 @@ void App::open_settings() {
   if (recording_) { MessageBoxW(hwnd_, L"录制中不能改设置", L"提示", MB_OK); return; }
   if (show_settings_dialog(hwnd_, cfg_)) {
     save_settings(default_settings_path(), cfg_);
+    if (cfg_.region_enabled && cfg_.region.w > 0)
+      frame_.set_region(cfg_.region.x, cfg_.region.y, cfg_.region.w, cfg_.region.h);
+    else
+      frame_.hide();
   }
 }
 
 void App::quit() {
   if (recording_) client_.send_message({MsgType::Stop, ""});
   end_session();
+  frame_.hide();
   tray_.remove();
   unregister_toggle_hotkey(hwnd_);
   PostQuitMessage(0);

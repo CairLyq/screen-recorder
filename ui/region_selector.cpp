@@ -36,20 +36,33 @@ LRESULT CALLBACK proc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
       if (msg == WM_KEYDOWN && wp != VK_ESCAPE) return 0;
       DestroyWindow(h);
       return 0;
+    case WM_ERASEBKGND: {
+      HDC dc = (HDC)wp;
+      RECT full;
+      GetClientRect(h, &full);
+      HBRUSH b = CreateSolidBrush(RGB(0, 0, 0));
+      FillRect(dc, &full, b);
+      DeleteObject(b);
+      return 1;
+    }
     case WM_PAINT: {
       PAINTSTRUCT ps;
       HDC dc = BeginPaint(h, &ps);
+      // 每次重绘整个客户区，只画当前矩形 → 旧框被覆盖，不留拖影。
+      RECT full;
+      GetClientRect(h, &full);
       HBRUSH b = CreateSolidBrush(RGB(0, 0, 0));
-      RECT full = {0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN)};
       FillRect(dc, &full, b);
       DeleteObject(b);
-      HPEN pen = CreatePen(PS_SOLID, 2, RGB(255, 40, 40));
-      HGDIOBJ oldp = SelectObject(dc, pen);
-      HGDIOBJ oldb = SelectObject(dc, GetStockObject(NULL_BRUSH));
-      Rectangle(dc, g_start.left, g_start.top, g_cur.left, g_cur.top);
-      SelectObject(dc, oldb);
-      SelectObject(dc, oldp);
-      DeleteObject(pen);
+      if (g_dragging || g_ok) {
+        HPEN pen = CreatePen(PS_SOLID, 2, RGB(255, 40, 40));
+        HGDIOBJ oldp = SelectObject(dc, pen);
+        HGDIOBJ oldb = SelectObject(dc, GetStockObject(NULL_BRUSH));
+        Rectangle(dc, g_start.left, g_start.top, g_cur.left, g_cur.top);
+        SelectObject(dc, oldb);
+        SelectObject(dc, oldp);
+        DeleteObject(pen);
+      }
       EndPaint(h, &ps);
       return 0;
     }
@@ -92,6 +105,9 @@ bool pick_region(HWND owner, RECT& out) {
     TranslateMessage(&msg);
     DispatchMessage(&msg);
   }
+  // 覆盖层销毁后桌面可能残留旧像素，强制重绘整个桌面。
+  RedrawWindow(GetDesktopWindow(), nullptr, nullptr,
+               RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN);
   if (!g_ok) return false;
   RECT r;
   r.left = g_start.left + x; r.top = g_start.top + y;

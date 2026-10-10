@@ -1,6 +1,7 @@
 #pragma once
 #include "common/types.h"
 #include "ui/ipc_client.h"
+#include "ui/region_frame.h"
 #include "ui/toolbar.h"
 #include "ui/tray.h"
 #include <windows.h>
@@ -18,6 +19,7 @@ public:
   HWND hwnd() const { return hwnd_; }
 
 private:
+  bool select_region();
   bool start_recording();
   void stop_recording();
   void poll_ipc();        // WM_TIMER：非阻塞收 State/Stats/Done/Error
@@ -27,6 +29,7 @@ private:
   HWND hwnd_ = nullptr;
   Toolbar toolbar_;
   Tray tray_;
+  RegionFrame frame_;
   IpcClient client_;
   void* proc_ = nullptr;      // recorder 进程 HANDLE
   RecordConfig cfg_;
