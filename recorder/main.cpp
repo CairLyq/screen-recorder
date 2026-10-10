@@ -57,7 +57,6 @@ static int run_ipc(const std::string& pipe_name) {
           server.send_message({MsgType::Error, R"({"code":"start_failed"})"});
         }
       } else if (m.type == MsgType::Stop) {
-        LOGI("rec got Stop");
         p.stop();
         recording = false;
         server.send_message({MsgType::Done, R"({"ok":true})"});
@@ -74,7 +73,6 @@ static int run_ipc(const std::string& pipe_name) {
         sj["fps"] = s.fps;
         sj["elapsed_ms"] = s.elapsed_ms;
         sj["dropped_frames"] = s.dropped_frames;
-        LOGI("rec -> Stats fps=%.1f elapsed=%lld", s.fps, (long long)s.elapsed_ms);
         server.send_message({MsgType::Stats, sj.dump()});
       }
     }

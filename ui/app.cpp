@@ -92,11 +92,9 @@ bool App::start_recording() {
 }
 
 void App::stop_recording() {
-  LOGI("ui stop_recording, recording=%d", (int)(bool)recording_);
   if (!recording_) return;
   client_.send_message({MsgType::Stop, ""});
   toolbar_.set_saving(true);
-  LOGI("ui -> Stop sent");
   // 等 poll_ipc 收到 Done 后收尾
 }
 
@@ -106,7 +104,6 @@ void App::poll_ipc() {
     int r = client_.poll_message(m);
     if (r < 0) { LOGE("ui << pipe EOF"); end_session(); return; }
     if (r == 0) break;
-    LOGI("ui << type=%d len=%zu", (int)m.type, m.payload.size());
     if (m.type == MsgType::State) {
       LOGI("state: %s", m.payload.c_str());
     } else if (m.type == MsgType::Stats) {
@@ -137,7 +134,6 @@ void App::end_session() {
 }
 
 void App::toggle() {
-  LOGI("ui toggle, recording=%d", (int)(bool)recording_);
   if (recording_) stop_recording(); else start_recording();
 }
 

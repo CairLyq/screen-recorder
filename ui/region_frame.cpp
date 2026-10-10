@@ -38,6 +38,11 @@ LRESULT RegionFrame::handle(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
       EndPaint(h, &ps);
       return 0;
     }
+    case WM_TIMER:
+      if (wp == 1)
+        SetWindowPos(h, HWND_TOPMOST, 0, 0, 0, 0,
+                     SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+      return 0;
   }
   return DefWindowProcW(h, msg, wp, lp);
 }
@@ -56,6 +61,7 @@ bool RegionFrame::create(HINSTANCE inst) {
   if (!hwnd_) return false;
   SetLayeredWindowAttributes(hwnd_, kKey, 0, LWA_COLORKEY);
   ShowWindow(hwnd_, SW_HIDE);  // 初始隐藏
+  SetTimer(hwnd_, 1, 1500, nullptr);
   return true;
 }
 
@@ -87,6 +93,7 @@ void RegionFrame::hide() {
 
 void RegionFrame::destroy() {
   if (hwnd_) {
+    KillTimer(hwnd_, 1);
     DestroyWindow(hwnd_);
     hwnd_ = nullptr;
   }

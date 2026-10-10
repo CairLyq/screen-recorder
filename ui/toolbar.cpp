@@ -1,5 +1,4 @@
 #include "ui/toolbar.h"
-#include "common/log.h"
 #include <cstdio>
 
 // WDA_EXCLUDEFROMCAPTURE 需要较新的 SDK；旧头文件里缺失时手补。
@@ -113,7 +112,6 @@ LRESULT Toolbar::handle(HWND h, UINT m, WPARAM w, LPARAM l) {
         pressed_ = false;
         ReleaseCapture();
         InvalidateRect(h, nullptr, FALSE);
-        LOGI("toolbar toggle clicked, rec=%d", (int)recording_);
         if (on_toggle_) on_toggle_();
       }
       return 0;
@@ -155,7 +153,6 @@ HWND Toolbar::create(HINSTANCE inst, std::function<void()> on_toggle) {
   SetWindowRgn(hwnd_, CreateRoundRectRgn(0, 0, W + 1, H + 1, 14, 14), TRUE);
   SetTimer(hwnd_, 1, 1500, nullptr);
   SetWindowDisplayAffinity(hwnd_, WDA_EXCLUDEFROMCAPTURE);
-  LOGI("toolbar created hwnd=%p at (%d,%d)", (void*)hwnd_, x, y);
   return hwnd_;
 }
 
