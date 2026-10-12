@@ -17,6 +17,8 @@ int main() {
   in.system_audio.volume = 0.5f;
   in.microphone.enabled = true;
   in.include_cursor = false;
+  in.hotkey_vk = 0x41;   // VK_A
+  in.hotkey_mods = 0x0002 | 0x0001;  // Ctrl+Alt
   save_settings(path, in);
 
   RecordConfig out = load_settings(path);
@@ -30,6 +32,8 @@ int main() {
   CHECK(out.system_audio.volume > 0.49f && out.system_audio.volume < 0.51f);
   CHECK(out.microphone.enabled);
   CHECK(!out.include_cursor);
+  CHECK(out.hotkey_vk == 0x41);
+  CHECK(out.hotkey_mods == (0x0002 | 0x0001));
 
   // 默认值：不存在的文件走默认
   std::remove(path);
@@ -39,5 +43,7 @@ int main() {
   CHECK(def.encoder == EncoderKind::Auto);
   CHECK(!def.region_enabled);
   CHECK(def.include_cursor);
+  CHECK(def.hotkey_vk == 0x78);   // 默认 VK_F9
+  CHECK(def.hotkey_mods == 0);
   return 0;
 }

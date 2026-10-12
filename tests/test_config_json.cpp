@@ -18,6 +18,8 @@ int main() {
   in.microphone.volume = 0.7f;
   in.microphone.device = "mic0";
   in.include_cursor = false;
+  in.hotkey_vk = 0x7B;   // VK_F12
+  in.hotkey_mods = 0x0002;  // Ctrl
 
   std::string s = config_to_json(in);
   RecordConfig out = config_from_json(s);
@@ -37,6 +39,8 @@ int main() {
   CHECK(out.microphone.volume > 0.69f && out.microphone.volume < 0.71f);
   CHECK_STREQ(out.microphone.device.c_str(), "mic0");
   CHECK(!out.include_cursor);
+  CHECK(out.hotkey_vk == 0x7B);
+  CHECK(out.hotkey_mods == 0x0002);
 
   // 坏 JSON / fps 越界 → 回落默认且不抛
   RecordConfig def = config_from_json("{not json}");

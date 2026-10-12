@@ -29,6 +29,8 @@ struct RecordConfig {
   AudioTrack system_audio;
   AudioTrack microphone;
   bool include_cursor = true;
+  int hotkey_vk = 0x78;   // VK_F9；用字面值避免在公共头引入 windows.h
+  int hotkey_mods = 0;    // MOD_* 组合（不含 MOD_NOREPEAT，注册时再补）
 };
 
 struct Stats {

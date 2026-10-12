@@ -2,9 +2,26 @@
 #include "ui/resource.h"
 #include "common/settings.h"
 #include <windows.h>
+#include <commctrl.h>
 #include <shellapi.h>
 #include <shlobj.h>
 #include <string>
+
+// HOTKEY 控件的修饰位（HOTKEYF_*，在高字节）与 RegisterHotKey 的 MOD_* 互转。
+static UINT hkf_to_mods(BYTE f) {
+  UINT m = 0;
+  if (f & HOTKEYF_SHIFT) m |= MOD_SHIFT;
+  if (f & HOTKEYF_CONTROL) m |= MOD_CONTROL;
+  if (f & HOTKEYF_ALT) m |= MOD_ALT;
+  return m;
+}
+static BYTE mods_to_hkf(UINT m) {
+  BYTE f = 0;
+  if (m & MOD_SHIFT) f |= HOTKEYF_SHIFT;
+  if (m & MOD_CONTROL) f |= HOTKEYF_CONTROL;
+  if (m & MOD_ALT) f |= HOTKEYF_ALT;
+  return f;
+}
 
 static std::wstring widen(const std::string& s) {
   if (s.empty()) return L"";
@@ -60,6 +77,8 @@ static INT_PTR CALLBACK proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp) {
       CheckDlgButton(dlg, IDC_SYSAUD, cfg->system_audio.enabled ? BST_CHECKED : BST_UNCHECKED);
       CheckDlgButton(dlg, IDC_MIC, cfg->microphone.enabled ? BST_CHECKED : BST_UNCHECKED);
       CheckDlgButton(dlg, IDC_CURSOR, cfg->include_cursor ? BST_CHECKED : BST_UNCHECKED);
+      SendMessageW(GetDlgItem(dlg, IDC_HOTKEY), HKM_SETHOTKEY,
+                   MAKEWORD((BYTE)cfg->hotkey_vk, mods_to_hkf((UINT)cfg->hotkey_mods)), 0);
       return TRUE;
     }
     case WM_COMMAND:
@@ -96,6 +115,20 @@ static INT_PTR CALLBACK proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp) {
           int mv = GetDlgItemInt(dlg, IDC_MIC_VOL, nullptr, FALSE);
           if (mv < 0) mv = 0; if (mv > 100) mv = 100;
           cfg->microphone.volume = mv / 100.0f;
+          UINT hk = (UINT)SendMessageW(GetDlgItem(dlg, IDC_HOTKEY), HKM_GETHOTKEY, 0, 0);
+          UINT vk = LOBYTE(hk), mods = hkf_to_mods(HIBYTE(hk));
+          if (vk == 0) {
+            MessageBoxW(dlg, L"请设置热键", L"提示", MB_OK | MB_ICONINFORMATION);
+            return TRUE;
+          }
+          // 无修饰键时只允许功能键，避免单键（如 A）被全局独占。
+          if (mods == 0 && !(vk >= VK_F1 && vk <= VK_F24)) {
+            MessageBoxW(dlg, L"该热键需带 Ctrl/Alt/Shift 修饰键", L"提示",
+                        MB_OK | MB_ICONINFORMATION);
+            return TRUE;
+          }
+          cfg->hotkey_vk = (int)vk;
+          cfg->hotkey_mods = (int)mods;
           EndDialog(dlg, 1);
           return TRUE;
         }
@@ -111,5 +144,59 @@ static INT_PTR CALLBACK proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp) {
 bool show_settings_dialog(HWND owner, RecordConfig& cfg) {
   INT_PTR r = DialogBoxParamW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDD_SETTINGS),
                               owner, proc, (LPARAM)&cfg);
+  return r == 1;
+}
+
+static INT_PTR CALLBACK format_proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp) {
+  static RecordConfig* cfg = nullptr;
+  switch (msg) {
+    case WM_INITDIALOG: {
+      cfg = (RecordConfig*)lp;
+      CheckRadioButton(dlg, IDC_FMT_MP4, IDC_FMT_WEBP,
+                       cfg->format == OutputFormat::Webp ? IDC_FMT_WEBP : IDC_FMT_MP4);
+      wchar_t t[64];
+      swprintf_s(t, L"区域 %d × %d", cfg->region.w, cfg->region.h);
+      SetDlgItemTextW(dlg, IDC_FMT_INFO, t);
+      // 弹在所选区域的正中，并夹到该显示器工作区内避免越界。
+      RECT wr;
+      GetWindowRect(dlg, &wr);
+      int dw = wr.right - wr.left, dh = wr.bottom - wr.top;
+      RECT reg = {cfg->region.x, cfg->region.y,
+                  cfg->region.x + cfg->region.w, cfg->region.y + cfg->region.h};
+      HMONITOR hm = MonitorFromRect(&reg, MONITOR_DEFAULTTONEAREST);
+      MONITORINFO mi = {sizeof(mi)};
+      if (GetMonitorInfoW(hm, &mi)) {
+        const RECT& wa = mi.rcWork;
+        int x = (reg.left + reg.right) / 2 - dw / 2;
+        int y = (reg.top + reg.bottom) / 2 - dh / 2;
+        if (x < wa.left) x = wa.left;
+        if (y < wa.top) y = wa.top;
+        if (x + dw > wa.right) x = wa.right - dw;
+        if (y + dh > wa.bottom) y = wa.bottom - dh;
+        SetWindowPos(dlg, nullptr, x, y, 0, 0,
+                     SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+      }
+      return TRUE;
+    }
+    case WM_COMMAND:
+      switch (LOWORD(wp)) {
+        case IDOK:
+          cfg->format = IsDlgButtonChecked(dlg, IDC_FMT_WEBP) == BST_CHECKED
+                            ? OutputFormat::Webp
+                            : OutputFormat::Mp4;
+          EndDialog(dlg, 1);
+          return TRUE;
+        case IDCANCEL:
+          EndDialog(dlg, 0);
+          return TRUE;
+      }
+      break;
+  }
+  return FALSE;
+}
+
+bool show_format_dialog(HWND owner, RecordConfig& cfg) {
+  INT_PTR r = DialogBoxParamW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDD_FORMAT),
+                              owner, format_proc, (LPARAM)&cfg);
   return r == 1;
 }

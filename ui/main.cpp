@@ -7,7 +7,7 @@
 int WINAPI WinMain(HINSTANCE inst, HINSTANCE, LPSTR, int) {
   SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
   CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
-  INITCOMMONCONTROLSEX icc = {sizeof(icc), ICC_STANDARD_CLASSES};
+  INITCOMMONCONTROLSEX icc = {sizeof(icc), ICC_STANDARD_CLASSES | ICC_HOTKEY_CLASS};
   InitCommonControlsEx(&icc);
 
   App app;

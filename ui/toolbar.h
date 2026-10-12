@@ -9,6 +9,7 @@ public:
   // on_toggle: 点 ▶/■ 时回调。返回创建出的窗口（失败 nullptr）。
   HWND create(HINSTANCE inst, std::function<void()> on_toggle);
   void show();
+  void hide();
   void set_recording(bool recording);  // 切换按钮图标：false=▶(开始) true=■(停止)
   void set_elapsed(int64_t ms);        // 更新计时（MM:SS）
   void set_saving(bool saving);        // 停止后保存中：左上角显示"保存中…"

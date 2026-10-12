@@ -74,10 +74,15 @@ void RegionFrame::set_region(int x, int y, int w, int h) {
   region_.left = x; region_.top = y;
   region_.right = x + w; region_.bottom = y + h;
   has_ = true;
-  SetWindowPos(hwnd_, HWND_TOPMOST, x - BORDER, y - BORDER,
-               w + 2 * BORDER, h + 2 * BORDER, SWP_NOACTIVATE);
-  InvalidateRect(hwnd_, nullptr, TRUE);
+  // 拖拽时每帧都在移动本窗：SWP_NOREDRAW 避免系统把旧位置的位图贴到新位置
+  // （那会造成边框残影/断段），SWP_NOZORDER 免去每次重申置顶的 z 序开销；
+  // 随后同步 UpdateWindow 立即按新位置重绘。置顶由 1.5s 定时器维持。
+  SetWindowPos(hwnd_, nullptr, x - BORDER, y - BORDER,
+               w + 2 * BORDER, h + 2 * BORDER,
+               SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOREDRAW);
   ShowWindow(hwnd_, SW_SHOWNOACTIVATE);
+  InvalidateRect(hwnd_, nullptr, TRUE);
+  UpdateWindow(hwnd_);
 }
 
 void RegionFrame::show() {

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+  <!-- 引入 Common Controls v6：让按钮/单选/编辑框等使用 Win10/11 主题外观，
+       否则用旧版经典控件绘制（“80 年代”观感的根因）。 -->
+  <dependency>
+    <dependentAssembly>
+      <assemblyIdentity type="win32" name="Microsoft.Windows.Common-Controls"
+        version="6.0.0.0" processorArchitecture="*"
+        publicKeyToken="6595b64144ccf1df" language="*"/>
+    </dependentAssembly>
+  </dependency>
+</assembly>

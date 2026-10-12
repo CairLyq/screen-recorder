@@ -52,13 +52,14 @@ bool App::init(HINSTANCE inst) {
                           nullptr, nullptr, inst, this);
   if (hwnd_ == nullptr) { LOGE("CreateWindowExW failed: %lu", GetLastError()); return false; }
 
-  toolbar_.create(inst, [this] { toggle(); });
-  toolbar_.show();      // 悬浮条常驻：顶部居中
+  toolbar_.create(inst, [this] { toggle(); });  // 不常驻：录制时才 show
   frame_.create(inst);  // 区域不持久化：启动时不恢复，每次录制重新框选
   tray_.add(hwnd_, WM_TRAY);
   tray_.set_callbacks([this] { toggle(); }, [this] { open_settings(); },
                       [this] { select_region(); }, [this] { quit(); });
-  register_toggle_hotkey(hwnd_, VK_F9);
+  if (!register_toggle_hotkey(hwnd_, (UINT)cfg_.hotkey_vk, (UINT)cfg_.hotkey_mods))
+    MessageBoxW(hwnd_, L"热键注册失败（可能被占用），请在设置中修改", L"提示",
+                MB_OK | MB_ICONWARNING);
   LOGI("ui ready, output -> %s", cfg_.output_dir.c_str());
   return true;
 }
@@ -81,6 +82,12 @@ bool App::start_recording() {
     MessageBoxW(hwnd_, L"未设置录制区域", L"提示", MB_OK | MB_ICONINFORMATION);
     return false;
   }
+  // 框选确认后弹格式选择，取消则不录制
+  if (!show_format_dialog(hwnd_, cfg_)) {
+    frame_.hide();
+    return false;
+  }
+  save_settings(default_settings_path(), cfg_);  // 记住本次格式选择
   pipe_name_ = "\\\\.\\pipe\\screenrec-default";
   proc_ = spawn_recorder(exe_dir() + "\\recorder.exe", pipe_name_);
   if (!proc_) { MessageBoxW(hwnd_, L"启动录制进程失败", L"错误", MB_OK | MB_ICONERROR); return false; }
@@ -94,6 +101,7 @@ bool App::start_recording() {
   rec_start_tick_ = GetTickCount64();
   toolbar_.set_recording(true);
   toolbar_.set_saving(false);
+  toolbar_.show();  // 录制开始才显示悬浮条
   SetTimer(hwnd_, TIMER_POLL, 20, nullptr);
   return true;
 }
@@ -102,6 +110,7 @@ void App::stop_recording() {
   if (!recording_) return;
   client_.send_message({MsgType::Stop, ""});
   toolbar_.set_saving(true);
+  frame_.hide();  // 停止即撤掉区域框，不必等保存完成
   // 等 poll_ipc 收到 Done 后收尾
 }
 
@@ -142,6 +151,7 @@ void App::end_session() {
   toolbar_.set_recording(false);
   toolbar_.set_elapsed(0);
   toolbar_.set_saving(false);
+  toolbar_.hide();  // 录制结束隐藏悬浮条（含保存中→Done）
   frame_.hide();  // 录制结束隐藏区域框
 }
 
@@ -151,7 +161,19 @@ void App::toggle() {
 
 void App::open_settings() {
   if (recording_) { MessageBoxW(hwnd_, L"录制中不能改设置", L"提示", MB_OK); return; }
+  RecordConfig old = cfg_;
   if (show_settings_dialog(hwnd_, cfg_)) {
+    // 热键若改动：先解注册旧的，再试注册新的；失败则回退热键字段并注册回旧的，
+    // 其它设置字段仍照常保存。
+    if (cfg_.hotkey_vk != old.hotkey_vk || cfg_.hotkey_mods != old.hotkey_mods) {
+      unregister_toggle_hotkey(hwnd_);
+      if (!register_toggle_hotkey(hwnd_, (UINT)cfg_.hotkey_vk, (UINT)cfg_.hotkey_mods)) {
+        MessageBoxW(hwnd_, L"热键已被占用，请换一个", L"提示", MB_OK | MB_ICONWARNING);
+        cfg_.hotkey_vk = old.hotkey_vk;
+        cfg_.hotkey_mods = old.hotkey_mods;
+        register_toggle_hotkey(hwnd_, (UINT)old.hotkey_vk, (UINT)old.hotkey_mods);
+      }
+    }
     save_settings(default_settings_path(), cfg_);
     // 区域每次录制时重新框选，设置对话框不碰区域框
   }

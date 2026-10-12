@@ -163,6 +163,10 @@ void Toolbar::show() {
                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
 }
 
+void Toolbar::hide() {
+  if (hwnd_) ShowWindow(hwnd_, SW_HIDE);
+}
+
 void Toolbar::set_recording(bool recording) {
   recording_ = recording;
   if (hwnd_) InvalidateRect(hwnd_, nullptr, FALSE);

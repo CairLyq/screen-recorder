@@ -60,6 +60,8 @@ void save_settings(const std::string& path, const RecordConfig& c) {
                      {"volume", c.microphone.volume},
                      {"device", c.microphone.device}};
   j["include_cursor"] = c.include_cursor;
+  j["hotkey_vk"] = c.hotkey_vk;
+  j["hotkey_mods"] = c.hotkey_mods;
   std::error_code ec;
   std::filesystem::create_directories(std::filesystem::path(path).parent_path(), ec);
   std::ofstream f(path);
@@ -98,6 +100,8 @@ RecordConfig load_settings(const std::string& path) {
       c.microphone.device = j["microphone"].value("device", std::string("default"));
     }
     c.include_cursor = j.value("include_cursor", true);
+    c.hotkey_vk = j.value("hotkey_vk", c.hotkey_vk);
+    c.hotkey_mods = j.value("hotkey_mods", c.hotkey_mods);
     return c;
   } catch (...) {
     return RecordConfig{};
@@ -128,6 +132,8 @@ std::string config_to_json(const RecordConfig& c) {
                      {"volume", c.microphone.volume},
                      {"device", c.microphone.device}};
   j["include_cursor"] = c.include_cursor;
+  j["hotkey_vk"] = c.hotkey_vk;
+  j["hotkey_mods"] = c.hotkey_mods;
   return j.dump();
 }
 
@@ -143,6 +149,8 @@ RecordConfig config_from_json(const std::string& body) {
     c.format = fmt_from_str(j.value("format", std::string("mp4")));
     c.region_enabled = j.value("region_enabled", c.region_enabled);
     c.include_cursor = j.value("include_cursor", c.include_cursor);
+    c.hotkey_vk = j.value("hotkey_vk", c.hotkey_vk);
+    c.hotkey_mods = j.value("hotkey_mods", c.hotkey_mods);
     if (j.contains("region")) {
       c.region.x = j["region"].value("x", c.region.x);
       c.region.y = j["region"].value("y", c.region.y);

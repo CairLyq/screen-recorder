@@ -35,8 +35,9 @@ LRESULT CALLBACK proc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
       if (g_dragging) {
         g_cur.left = GET_X_LPARAM(lp);
         g_cur.top = GET_Y_LPARAM(lp);
+        // 遮罩内容恒定（整屏固定透明黑），拖拽期间无需重绘：这里每次重绘整块
+        // 全屏 alpha 窗会拖慢拖拽。只需更新上层边框窗。
         update_frame_region();
-        InvalidateRect(h, nullptr, TRUE);
       }
       return 0;
     case WM_LBUTTONUP:
@@ -67,7 +68,8 @@ LRESULT CALLBACK proc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
     case WM_PAINT: {
       PAINTSTRUCT ps;
       HDC dc = BeginPaint(h, &ps);
-      // 每次重绘整个客户区 → 不留拖影。边框由上层不透明边框窗绘制。
+      // 整块铺半透明黑；只在首次/被上层窗揭开时重绘，拖拽期间不触发。
+      // 边框由上层不透明边框窗绘制。
       RECT full;
       GetClientRect(h, &full);
       HBRUSH b = CreateSolidBrush(RGB(0, 0, 0));
